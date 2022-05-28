@@ -240,7 +240,7 @@ auto main([[maybe_unused]]std::int32_t argc, [[maybe_unused]]char const* argv[])
 
     // create shader for rendering
     std::uint32_t shader_id = one::shader_link(
-            one::shader_compile(GL_VERTEX_SHADER, one::vertex_shader),
+            one::shader_compile(GL_VERTEX_SHADER,   one::vertex_shader),
             one::shader_compile(GL_FRAGMENT_SHADER, one::fragment_shader)
         );
 
