@@ -30,9 +30,6 @@ set_target_properties(freetype PROPERTIES
 # spdlog library interface from source
 add_library(spdlog INTERFACE)
 target_include_directories(spdlog INTERFACE "$ENV{SPDLOG_PATH}/include")
-# glm library interface from source
-add_library(glm INTERFACE)
-target_include_directories(glm INTERFACE "$ENV{GLM_PATH}")
 # GLFW library from source
 add_library(glfw STATIC IMPORTED)
 find_library(GLFW_LIB
@@ -57,6 +54,12 @@ set_target_properties(glad PROPERTIES
     INTERFACE_LINK_DIRECTORIES "$ENV{GLAD_PATH}/lib"
     IMPORTED_LOCATION "${GLAD_LIB}"
 )
+# glm library interface from source
+add_library(glm INTERFACE)
+target_include_directories(glm INTERFACE "$ENV{GLM_PATH}")
+# glm library interface from source
+add_library(stb STATIC stb_image.c)
+target_include_directories(stb PUBLIC "$ENV{STB_PATH}")
 
 # warnings and errors
 if (NOT MSVC)
@@ -82,13 +85,17 @@ endif()
 add_executable(${PROJECT_NAME}
     hellotext.cpp
 )
-include_directories(${PROJECT_NAME} "${PROJECT_SOURCE_DIR}/src")
+include_directories(
+    "${PROJECT_SOURCE_DIR}"
+    ${PNG_INCLUDE_DIR}
+)
 target_link_libraries(${PROJECT_NAME}
     freetype
     spdlog
     glfw
     glad
     glm
+    stb
 )
 if (APPLE)
     target_link_libraries(${PROJECT_NAME}
