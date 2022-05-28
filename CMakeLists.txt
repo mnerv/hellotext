@@ -19,47 +19,47 @@ set(CMAKE_C_STANDARD 17)
 add_library(freetype STATIC IMPORTED)
 find_library(FREETYPE_LIB
     NAMES libfreetype.a freetype.lib
-    PATHS "$ENV{FREETYPE_PATH}/build" "${PROJECT_SOURCE_DIR}/bin"
+    PATHS "$ENV{FREETYPE_SDK}/build" "${PROJECT_SOURCE_DIR}/bin"
     NO_DEFAULT_PATH
 )
 set_target_properties(freetype PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "$ENV{FREETYPE_PATH}/include"
-    INTERFACE_LINK_DIRECTORIES "$ENV{FREETYPE_PATH}/build"
+    INTERFACE_INCLUDE_DIRECTORIES "$ENV{FREETYPE_SDK}/include"
+    INTERFACE_LINK_DIRECTORIES "$ENV{FREETYPE_SDK}/build"
     IMPORTED_LOCATION "${FREETYPE_LIB}"
 )
 # spdlog library interface from source
 add_library(spdlog INTERFACE)
-target_include_directories(spdlog INTERFACE "$ENV{SPDLOG_PATH}/include")
+target_include_directories(spdlog INTERFACE "$ENV{SPDLOG_SDK}/include")
 # GLFW library from source
 add_library(glfw STATIC IMPORTED)
 find_library(GLFW_LIB
     NAMES libglfw3.a glfw3.lib
-    PATHS "$ENV{GLFW_PATH}/build/src"
+    PATHS "$ENV{GLFW_SDK}/build/src"
     NO_DEFAULT_PATH
 )
 set_target_properties(glfw PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "$ENV{GLFW_PATH}/include"
-    INTERFACE_LINK_DIRECTORIES "$ENV{GLFW_PATH}/build"
+    INTERFACE_INCLUDE_DIRECTORIES "$ENV{GLFW_SDK}/include"
+    INTERFACE_LINK_DIRECTORIES "$ENV{GLFW_SDK}/build"
     IMPORTED_LOCATION "${GLFW_LIB}"
 )
 # Glad library from source
 add_library(glad STATIC IMPORTED)
 find_library(GLAD_LIB
     NAMES libglad.a glad.lib
-    PATHS "$ENV{GLAD_PATH}/lib"
+    PATHS "$ENV{GLAD_SDK}/lib"
     NO_DEFAULT_PATH
 )
 set_target_properties(glad PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "$ENV{GLAD_PATH}/include"
-    INTERFACE_LINK_DIRECTORIES "$ENV{GLAD_PATH}/lib"
+    INTERFACE_INCLUDE_DIRECTORIES "$ENV{GLAD_SDK}/include"
+    INTERFACE_LINK_DIRECTORIES "$ENV{GLAD_SDK}/lib"
     IMPORTED_LOCATION "${GLAD_LIB}"
 )
 # glm library interface from source
 add_library(glm INTERFACE)
-target_include_directories(glm INTERFACE "$ENV{GLM_PATH}")
+target_include_directories(glm INTERFACE "$ENV{GLM_SDK}")
 # glm library interface from source
 add_library(stb STATIC stb_image.c)
-target_include_directories(stb PUBLIC "$ENV{STB_PATH}")
+target_include_directories(stb PUBLIC "$ENV{STB_SDK}")
 
 # warnings and errors
 if (NOT MSVC)

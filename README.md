@@ -16,11 +16,19 @@ Rendering text in OpenGL using FreeType!
 Required environment variable definitions
 
 ```
-FREETYPE_PATH
-SPDLOG_PATH
-GLFW_PATH
-GLAD_PATH
-GLM_PATH
-STB_PATH
+FREETYPE_SDK
+SPDLOG_SDK
+GLFW_SDK
+GLAD_SDK
+GLM_SDK
+STB_SDK
+```
+
+These variables should point to the library directory in the requirements.
+
+For `FreeType` library make sure to compile with this flag.
+
+```
+cmake -S . -Bbuild -D FT_DISABLE_ZLIB=TRUE -D FT_DISABLE_BZIP2=TRUE -D FT_DISABLE_PNG=TRUE -D FT_DISABLE_HARFBUZZ=TRUE -D FT_DISABLE_BROTLI=TRUE -D CMAKE_BUILD_TYPE=Release
 ```
 
