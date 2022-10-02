@@ -1,15 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(hellotext VERSION 0.0.0)
-
-# Generate the compile_commands.json for ccls
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-# output location
-if (NOT DEFINED WORKSPACE_LOCATION)
-    set(WORKSPACE_LOCATION ${PROJECT_SOURCE_DIR})
-endif()
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${WORKSPACE_LOCATION}/bin/${PROJECT_NAME}")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${WORKSPACE_LOCATION}/bin/${PROJECT_NAME}")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${WORKSPACE_LOCATION}/bin/${PROJECT_NAME}")
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)  # Group CMake targets inside a folder
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)         # Generate compile_commands.json for language servers
 
 # compilation flags
 set(CMAKE_CXX_STANDARD 20)
@@ -46,12 +38,12 @@ set_target_properties(glfw PROPERTIES
 add_library(glad STATIC IMPORTED)
 find_library(GLAD_LIB
     NAMES libglad.a glad.lib
-    PATHS "$ENV{GLAD_SDK}/lib"
+    PATHS "$ENV{GLAD_SDK}/build"
     NO_DEFAULT_PATH
 )
 set_target_properties(glad PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "$ENV{GLAD_SDK}/include"
-    INTERFACE_LINK_DIRECTORIES "$ENV{GLAD_SDK}/lib"
+    INTERFACE_LINK_DIRECTORIES "$ENV{GLAD_SDK}/build"
     IMPORTED_LOCATION "${GLAD_LIB}"
 )
 # glm library interface from source
