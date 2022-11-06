@@ -2,6 +2,8 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <algorithm>
+#include <filesystem>
 
 #include "spdlog/spdlog.h"
 #include "glad/glad.h"
@@ -105,13 +107,15 @@ auto shader_link(std::uint32_t const& fs, std::uint32_t const& vs) -> std::uint3
 }
 }
 
-auto main([[maybe_unused]]std::int32_t argc, [[maybe_unused]]char const* argv[]) -> std::int32_t {
+auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
     std::string title   = "Hello, Text!";
     std::int32_t width  = 738;
     std::int32_t height = 480;
 
-    if (!glfwInit())
+    if (!glfwInit()) {
+        spdlog::error("Failed to initialise GLFW!");
         return -1;
+    }
     one::setup_opengl();
     GLFWwindow* window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!window) {
@@ -131,7 +135,11 @@ auto main([[maybe_unused]]std::int32_t argc, [[maybe_unused]]char const* argv[])
         return 1;
     }
 
-    std::string font_path{"/Users/k/Downloads/CozetteVector.otf"};
+    std::string font_path{"deps/fonts/Cozette/CozetteVector.ttf"};
+    if (!std::filesystem::exists(font_path)) {
+        spdlog::error("Font file: {:s} does not exist!", font_path);
+        return 1;
+    }
     FT_Face font_face;
     auto font_error = FT_New_Face(font_library, font_path.c_str(), 0, &font_face);
     if (font_error == FT_Err_Unknown_File_Format) {

@@ -1,112 +1,51 @@
-cmake_minimum_required(VERSION 3.12)
-project(hellotext VERSION 0.0.0)
+cmake_minimum_required(VERSION 3.21)
+project(hellotext VERSION 0.0.1)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)  # Group CMake targets inside a folder
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)         # Generate compile_commands.json for language servers
 
-# compilation flags
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_C_STANDARD 17)
+add_subdirectory(deps/stb)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(freetype CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(glad CONFIG REQUIRED)
 
-# freetype library from source
-add_library(freetype STATIC IMPORTED)
-find_library(FREETYPE_LIB
-    NAMES libfreetype.a freetype.lib
-    PATHS "$ENV{FREETYPE_SDK}/build" "${PROJECT_SOURCE_DIR}/bin"
-    NO_DEFAULT_PATH
-)
-set_target_properties(freetype PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "$ENV{FREETYPE_SDK}/include"
-    INTERFACE_LINK_DIRECTORIES "$ENV{FREETYPE_SDK}/build"
-    IMPORTED_LOCATION "${FREETYPE_LIB}"
-)
-# spdlog library interface from source
-add_library(spdlog INTERFACE)
-target_include_directories(spdlog INTERFACE "$ENV{SPDLOG_SDK}/include")
-# GLFW library from source
-add_library(glfw STATIC IMPORTED)
-find_library(GLFW_LIB
-    NAMES libglfw3.a glfw3.lib
-    PATHS "$ENV{GLFW_SDK}/build/src"
-    NO_DEFAULT_PATH
-)
-set_target_properties(glfw PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "$ENV{GLFW_SDK}/include"
-    INTERFACE_LINK_DIRECTORIES "$ENV{GLFW_SDK}/build"
-    IMPORTED_LOCATION "${GLFW_LIB}"
-)
-# Glad library from source
-add_library(glad STATIC IMPORTED)
-find_library(GLAD_LIB
-    NAMES libglad.a glad.lib
-    PATHS "$ENV{GLAD_SDK}/build"
-    NO_DEFAULT_PATH
-)
-set_target_properties(glad PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "$ENV{GLAD_SDK}/include"
-    INTERFACE_LINK_DIRECTORIES "$ENV{GLAD_SDK}/build"
-    IMPORTED_LOCATION "${GLAD_LIB}"
-)
-# glm library interface from source
-add_library(glm INTERFACE)
-target_include_directories(glm INTERFACE "$ENV{GLM_SDK}")
-# glm library interface from source
-add_library(stb STATIC stb_image.c)
-target_include_directories(stb PUBLIC "$ENV{STB_SDK}")
-
-# warnings and errors
-if (NOT MSVC)
-    string(JOIN " " CMAKE_CXX_FLAGS
-        ${CMAKE_CXX_FLAGS}
-        "-Wall"
-        "-Wextra"
-        "-Wconversion"
-        "-Wpedantic"
-        "-Werror"
-
-        # Suppress warnings for GLM library
-        "-Wno-deprecated-volatile"
-    )
-else()
-    string(JOIN " " CMAKE_CXX_FLAGS
-        ${CMAKE_CXX_FLAGS}
-        "/W4"
-        "/WX"
-    )
-endif()
-
-add_executable(${PROJECT_NAME}
-    hellotext.cpp
-)
-include_directories(
-    "${PROJECT_SOURCE_DIR}"
-    ${PNG_INCLUDE_DIR}
-)
-target_link_libraries(${PROJECT_NAME}
-    freetype
-    spdlog
-    glfw
-    glad
-    glm
-    stb
-)
 if (APPLE)
-    target_link_libraries(${PROJECT_NAME}
+    set(PLATFORM_LINK_LIBRARIES
         "-framework Cocoa"
         "-framework IOKit"
         "-framework CoreVideo"
         "-framework OpenGL"
     )
 elseif (LINUX)
-    target_link_libraries(${PROJECT_NAME}
+    set(PLATFORM_LINK_LIBRARIES
         "-dl"
         "-m"
         "-GL"
         "-X11"
     )
-elseif(WIN32)
-    target_link_libraries(${PROJECT_NAME}
-        "OpenGL32.lib"
-    )
+elseif (WIN32)
+    set(PLATFORM_LINK_LIBRARIES "OpenGL32.lib")
 endif()
+if (NOT DEFINED PLATFORM_LINK_LIBRARIES)
+    message(FATAL_ERROR "PLATFORM_LINK_LIRBARIES not defined!")
+endif()
+
+set(TARGET ${PROJECT_NAME})
+add_executable(${TARGET}
+    hellotext.cpp
+)
+target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR})
+target_compile_features(${TARGET} PRIVATE cxx_std_20)
+target_link_libraries(${TARGET}
+    PRIVATE
+    ${PLATFORM_LINK_LIBRARIES}
+    stb
+    freetype
+    glad::glad
+    glfw
+    glm::glm
+    spdlog::spdlog
+)
 source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" FILES ${TARGET_SOURCE_FILES})
 

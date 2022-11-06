@@ -1,0 +1,17 @@
+{
+  "dependencies": [
+    "glfw3",
+    {
+      "name": "freetype",
+      "default-features": false
+    },
+    "spdlog",
+    "glm",
+    {
+      "name": "glad",
+      "default-features": false,
+      "features": ["gl-api-41"]
+    }
+  ]
+}
+
