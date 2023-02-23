@@ -48,4 +48,3 @@ target_link_libraries(${TARGET}
     spdlog::spdlog
 )
 source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" FILES ${TARGET_SOURCE_FILES})
-

@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <filesystem>
+#include <memory>
 
 #include "spdlog/spdlog.h"
 #include "glad/glad.h"
@@ -20,11 +21,56 @@
 #include "stb_image_write.h"
 
 namespace one {
-static auto setup_opengl() -> void {
+[[maybe_unused]]static auto setup_opengl() -> void {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+}
+[[maybe_unused]]static auto info_opengl() -> void {
+    fmt::print("OpenGL Info:\n");
+    fmt::print("    Vendor:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VENDOR)));
+    fmt::print("    Renderer: {:s}\n", reinterpret_cast<char const*>(glGetString(GL_RENDERER)));
+    fmt::print("    Version:  {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VERSION)));
+    fmt::print("    Shader:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
+}
+
+using window_ref = std::shared_ptr<GLFWwindow>;
+static auto setup_window(std::string const& title, std::int32_t const& width, std::int32_t const& height) -> window_ref {
+    if (glfwInit() == GLFW_FALSE) {
+        fmt::print(stderr, "Failed to initialize GLFW\n");
+        return nullptr;
+    }
+    setup_opengl();
+
+    auto window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+    if (window == nullptr) {
+        fmt::print(stderr, "Failed to create GLFW window\n");
+        glfwTerminate();
+        return nullptr;
+    }
+
+    glfwMakeContextCurrent(window);
+    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
+        fmt::print(stderr, "Failed to initialize GLAD\n");
+        return nullptr;
+    }
+    info_opengl();
+
+    return std::shared_ptr<GLFWwindow>(window, [](GLFWwindow* w) {
+        glfwDestroyWindow(w);
+        glfwTerminate();
+    });
+}
+
+using texture_ref = std::shared_ptr<std::uint32_t>;
+[[maybe_unused]]static auto create_texture() -> texture_ref {
+    auto id = new std::uint32_t;
+    glGenTextures(1, id);
+    return std::shared_ptr<std::uint32_t>(id, [](std::uint32_t* id) {
+        glDeleteTextures(1, id);
+        delete id;
+    });
 }
 
 [[maybe_unused]]static auto vertex_shader = R"(#version 410 core
@@ -55,7 +101,7 @@ void main() {
 )";
 
 struct character {
-    std::uint32_t texture_id;  // Texture ID of the Glyph
+    texture_ref   texture_id;  // Texture ID of the Glyph
     glm::ivec2    size;        // Size of the Glyph
     glm::ivec2    bearing;     // Offset from baseline to left/top of glyph
     std::int64_t  advance;     // Offset to advance to next glyph
@@ -111,23 +157,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
     std::string title   = "Hello, Text!";
     std::int32_t width  = 738;
     std::int32_t height = 480;
-
-    if (!glfwInit()) {
-        spdlog::error("Failed to initialise GLFW!");
-        return -1;
-    }
-    one::setup_opengl();
-    GLFWwindow* window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
-    if (!window) {
-        spdlog::error("Can't create GLFW window!");
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(window);
-    if (!gladLoadGLLoader(GLADloadproc(glfwGetProcAddress))) {
-        glfwTerminate();
-        spdlog::error("Failed to load glad!\n");
-    }
+    auto window = one::setup_window(title, width, height);
 
     FT_Library font_library;
     if (FT_Init_FreeType(&font_library)) {
@@ -158,9 +188,8 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
             spdlog::warn("FreeType: Failed to load glyph code: {}", code);
             continue;
         }
-        std::uint32_t texture_id;
-        glGenTextures(1, &texture_id);
-        glBindTexture(GL_TEXTURE_2D, texture_id);
+        auto texture_id = one::create_texture();
+        glBindTexture(GL_TEXTURE_2D, *texture_id);
         glTexImage2D(GL_TEXTURE_2D,
                      0,
                      GL_R8,
@@ -234,7 +263,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
                 {xpos + w, ypos + h,   1.0f, 0.0f},
             };
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, ch.texture_id);
+            glBindTexture(GL_TEXTURE_2D, *ch.texture_id);
             glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
             glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -254,11 +283,11 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
 
     auto is_running = true;
     while(is_running) {
-        is_running = !glfwWindowShouldClose(window);
-        glfwGetFramebufferSize(window, &width, &height);
+        is_running = !glfwWindowShouldClose(window.get());
+        glfwGetFramebufferSize(window.get(), &width, &height);
         projection = glm::ortho(0.0f, float(width), 0.0f, float(height));
 
-        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        if (glfwGetKey(window.get(), GLFW_KEY_Q) == GLFW_PRESS)
             is_running = false;
 
         // Clear screen
@@ -275,18 +304,9 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
 
         render_text(shader_id, "Hello, World!", {25.0f, 25.0f}, 1.0f, {0.5, 0.8f, 0.2f});
 
-        glfwSwapBuffers(window);
+        glfwSwapBuffers(window.get());
         glfwPollEvents();
     }
 
-    std::for_each(std::begin(characters), std::end(characters),
-    [](auto const& character){
-        glDeleteTextures(1, &character.second.texture_id);
-    });
-
-    // Clean up GLFW resource
-    glfwTerminate();
-
     return 0;
 }
-
