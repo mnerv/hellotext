@@ -7,7 +7,7 @@
 #include <memory>
 #include <numeric>
 
-#include "spdlog/spdlog.h"
+#include "fmt/format.h"
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 
@@ -353,7 +353,7 @@ private:
         glGetShaderiv(shader, GL_COMPILE_STATUS, &is_success);
         if (!is_success) {
             glGetShaderInfoLog(shader, LOG_SIZE, nullptr, info_log);
-            spdlog::error("SHADER::{}SHADER::COMPILE_FAILED {}",
+            fmt::print("SHADER::{}SHADER::COMPILE_FAILED {}",
                         type == GL_VERTEX_SHADER ? "VERTEX_" : "FRAGMENT_",
                         info_log);
             throw std::runtime_error("Shader compilation error");
@@ -374,7 +374,7 @@ private:
         glGetProgramiv(program, GL_LINK_STATUS, &is_success);
         if (!is_success) {
             glGetProgramInfoLog(program, LOG_SIZE, nullptr, info_log);
-            spdlog::error("SHADER::LINK {}", info_log);
+            fmt::print("SHADER::LINK {}", info_log);
             throw std::runtime_error("Shader linking error");
         }
 
@@ -491,22 +491,22 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
 
     FT_Library font_library;
     if (FT_Init_FreeType(&font_library)) {
-        spdlog::error("Failed initialising FreeType");
+        fmt::print("Failed initialising FreeType");
         return 1;
     }
 
     std::string font_path{"deps/fonts/Cozette/CozetteVector.ttf"};
     if (!std::filesystem::exists(font_path)) {
-        spdlog::error("Font file: {:s} does not exist!", font_path);
+        fmt::print("Font file: {:s} does not exist!", font_path);
         return 1;
     }
     FT_Face font_face;
     auto font_error = FT_New_Face(font_library, font_path.c_str(), 0, &font_face);
     if (font_error == FT_Err_Unknown_File_Format) {
-        spdlog::error("Unknown file format!");
+        fmt::print("Unknown file format!");
         return 1;
     } else if (font_error) {
-        spdlog::error("Failed Loading font!");
+        fmt::print("Failed Loading font!");
         return 1;
     }
 

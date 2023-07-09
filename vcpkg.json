@@ -5,7 +5,7 @@
       "name": "freetype",
       "default-features": false
     },
-    "spdlog",
+    "fmt",
     "glm",
     {
       "name": "glad",

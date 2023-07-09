@@ -6,10 +6,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)         # Generate compile_commands.json f
 add_subdirectory(deps/stb)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(freetype CONFIG REQUIRED)
-find_package(spdlog CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(utf8cpp CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
 
 if (APPLE)
     set(PLATFORM_LINK_LIBRARIES
@@ -67,7 +67,7 @@ target_link_libraries(${TARGET}
     glad::glad
     glfw
     glm::glm
-    spdlog::spdlog
     utf8::cpp
+    fmt::fmt
 )
 source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" FILES ${TARGET_SOURCE_FILES})
