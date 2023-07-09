@@ -480,7 +480,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
     std::string  title  = "Hello, Text!";
     std::int32_t width  = 738;
     std::int32_t height = 480;
-    constexpr auto FONT_SIZE = 28;  // In Pixels
+    constexpr auto FONT_SIZE = 32;  // In Pixels
     constexpr auto FT_RENDER_FLAGS = FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     auto window = txt::new_window(title, width, height);
@@ -581,6 +581,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         std::vector<std::uint8_t> buffer{};
         buffer.resize(size * size);
         if (is_regen_atlas) ch_uv = {0, 0};
+
         for (auto& [code, font] : chars_map) {
             auto const width   = font.size.x;
             auto const height  = font.size.y;
@@ -599,7 +600,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
             };
 
             ch_uv.x += max_size;
-            if (ch_uv.x >= std::int32_t(size)) {
+            if (ch_uv.x + max_size >= std::int32_t(size)) {
                 ch_uv.x = 0;
                 ch_uv.y += max_size;
             }
@@ -665,20 +666,28 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         glDrawElementsInstanced(GL_TRIANGLES, GLsizei(quad_index->size()), GLenum(quad_index->type()), nullptr, GLsizei(text_size));
     };
 
-    auto render_text = [&](std::string const& text) {
+    auto render_text = [&](std::string const& text, float const& line_spacing = 1.2f) {
         begin_text();
         std::u32string u32txt;
         utf8::utf8to32(std::begin(text), std::end(text), std::back_inserter(u32txt));
         glm::vec2 pos{};
         for (auto const& code : u32txt) {
             auto it = chars_map.find(code);
-            if (it == std::end(chars_map))
-                it = chars_map.find(U' ');
-            auto ch = it->second;
+            if (it == std::end(chars_map)) {
+                load_font(font_face, code);
+                it = chars_map.find(code);
+                if (it != std::end(chars_map)) {
+                    is_regen_atlas = true;
+                    generate_atlas();
+                } else {
+                    it = chars_map.find(0);
+                }
+            }
+            auto const& ch = it->second;
 
             if (code == '\n') {
                 pos.x = 0.0f;
-                pos.y -= float(ch.bearing.y) * 1.25f;
+                pos.y -= float(ch.bearing.y) * line_spacing;
             } else {
                 push_char(ch, pos);
                 pos.x += float(ch.advance >> 6);
@@ -722,15 +731,12 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         shader->bind();
         shader->set_num("u_texture", 0);
         shader->set_vec2("u_size", {float(texture->width()), float(texture->height())});
-        shader->set_vec3("u_color", {1.0f, 0.5f, 0.1f});
+        shader->set_vec3("u_color", {0.25f, 0.75f, 1.0f});
         shader->set_mat4("u_model", model);
         shader->set_mat4("u_view", view);
         shader->set_mat4("u_projection", projection);
 
-        render_text("Hello, World!\nHej Charlie!");
-        // begin_text();
-        // push_code('H');
-        // end_text();
+        render_text("Hello, World!\nHej Charlie! \uf126");
 
         window->swap();
         window->poll();
