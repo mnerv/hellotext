@@ -20,10 +20,10 @@ if (APPLE)
     )
 elseif (LINUX)
     set(PLATFORM_LINK_LIBRARIES
-        "-dl"
-        "-m"
-        "-GL"
-        "-X11"
+        "dl"
+        "m"
+        "GL"
+        "X11"
     )
 elseif (WIN32)
     set(PLATFORM_LINK_LIBRARIES "OpenGL32.lib")
