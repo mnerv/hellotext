@@ -13,6 +13,7 @@
 
 #include "ft2build.h"
 #include FT_FREETYPE_H
+#include FT_LCD_FILTER_H
 
 #include "glm/vec2.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -46,32 +47,45 @@ constexpr auto len(T (&)[N]) -> std::size_t {
 class window {
 public:
     window(std::string const& title, std::int32_t const& width, std::int32_t const& height) {
-    if (glfwInit() == GLFW_FALSE)
-        throw std::runtime_error(fmt::format("Failed to initialize GLFW\n"));
-    setup_opengl();
+        if (glfwInit() == GLFW_FALSE)
+            throw std::runtime_error(fmt::format("Failed to initialize GLFW\n"));
+        setup_opengl();
 
-    m_native = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
-    if (m_native == nullptr) {
-        throw std::runtime_error(fmt::format("Failed to create GLFW window\n"));
-    }
+        m_native = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+        if (m_native == nullptr) {
+            throw std::runtime_error(fmt::format("Failed to create GLFW window\n"));
+        }
 
-    glfwMakeContextCurrent(m_native);
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
-        throw std::runtime_error(fmt::format("Failed to initialize GLAD\n"));
-    }
-    info_opengl();
+        glfwMakeContextCurrent(m_native);
+        if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
+            throw std::runtime_error(fmt::format("Failed to initialize GLAD\n"));
+        }
+
+        info_opengl();
+
+        m_monitor = glfwGetPrimaryMonitor();
+        glfwGetWindowSize(m_native, &m_width, &m_height);
+        glfwGetMonitorContentScale(m_monitor, &m_monitor_content_scale.x, &m_monitor_content_scale.y);
     }
     ~window() {
         glfwDestroyWindow(m_native);
         glfwTerminate();
     }
 
+    auto monitor_content_scale() const -> glm::vec2 const& { return m_monitor_content_scale; };
     auto native() -> GLFWwindow* { return m_native; }
+    auto time() -> double { return glfwGetTime(); }
+
     auto swap() -> void { glfwSwapBuffers(m_native); }
     auto poll() -> void { glfwPollEvents(); }
 
 private:
     GLFWwindow* m_native;
+    GLFWmonitor* m_monitor;
+
+    std::int32_t m_width{0};
+    std::int32_t m_height{0};
+    glm::vec2    m_monitor_content_scale{};
 };
 
 using window_ref_t = std::shared_ptr<window>;
@@ -81,7 +95,7 @@ auto new_window(std::string const& title, std::int32_t const& width, std::int32_
 
 class texture {
 public:
-    texture(void const* data, std::uint32_t width, std::uint32_t height, std::uint32_t channels, std::uint32_t format, std::uint32_t pixel_type)
+    texture(void const* data, std::uint32_t width, std::uint32_t height, std::uint32_t channels, std::uint32_t internal_format, std::uint32_t format, std::uint32_t pixel_type)
         : m_id(0)
         , m_width(width)
         , m_height(height)
@@ -89,7 +103,7 @@ public:
         , m_pixel_type(pixel_type) {
         glGenTextures(1, &m_id);
         glBindTexture(GL_TEXTURE_2D, m_id);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, m_width, m_height, 0, format, pixel_type, data);
+        glTexImage2D(GL_TEXTURE_2D, 0, internal_format, m_width, m_height, 0, format, pixel_type, data);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
     ~texture() {
@@ -101,6 +115,8 @@ public:
         glBindTexture(GL_TEXTURE_2D, m_id);
     }
 
+    auto channels() const -> std::uint32_t { return m_channels; }
+    auto pixel_type() const -> std::uint32_t { return m_pixel_type; }
     auto width() const -> std::uint32_t { return m_width; }
     auto height() const -> std::uint32_t { return m_height; }
 
@@ -113,8 +129,8 @@ private:
 };
 
 using texture_ref_t = std::shared_ptr<texture>;
-auto new_texture(void const* data, std::uint32_t width, std::uint32_t height, std::uint32_t channels, std::uint32_t format, std::uint32_t pixel_type) -> texture_ref_t {
-    return std::make_shared<texture>(data, width, height, channels, format, pixel_type);
+auto new_texture(void const* data, std::uint32_t width, std::uint32_t height, std::uint32_t channels, std::uint32_t internal_format, std::uint32_t format, std::uint32_t pixel_type) -> texture_ref_t {
+    return std::make_shared<texture>(data, width, height, channels, internal_format, format, pixel_type);
 }
 
 struct attrib {
@@ -418,7 +434,7 @@ void main() {
     position.x *= _size.x;
     position.y *= _size.y;
     position.xy += a_offset - 0.5;
-    gl_Position = u_projection * u_view * u_model * vec4(position, 1.0f);
+    gl_Position = u_projection * u_view * u_model * vec4(position, 1.0);
 }
 )glsl";
 
@@ -441,8 +457,8 @@ void main() {
 
     float d = texture(u_texture, uv).r;
     float aaf = fwidth(d);
-    float alpha = smoothstep(0.5 - aaf, 0.5 + aaf, d);
-    color = vec4(u_color, alpha);
+    float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
+    color = vec4(u_color, a);
 }
 )glsl";
 }
@@ -453,6 +469,7 @@ struct character {
     std::int64_t  advance;     // Offset to advance to next glyph
     glm::vec2     uv;
     std::vector<std::uint8_t> data;
+    std::int64_t  height;
 };
 
 struct gpu_character {
@@ -472,18 +489,48 @@ static constexpr std::uint32_t quad_cw_indices[] = {
     0, 1, 2,
     0, 2, 3
 };
-static constexpr auto quad_stride     = 5 * sizeof(float);
-static constexpr auto quad_xyz_offset = 0 * sizeof(float);
-static constexpr auto quad_uv_offset  = 3 * sizeof(float);
+// static constexpr auto quad_stride     = 5 * sizeof(float);
+// static constexpr auto quad_xyz_offset = 0 * sizeof(float);
+// static constexpr auto quad_uv_offset  = 3 * sizeof(float);
+
+constexpr auto test_text = R"(█This is a test
+█This is a test
+ █
+█ █ █ █
+ █ █ █
+█ █ █ █
+)";
+static std::u32string text_buffer{};
 
 auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
     std::string  title  = "Hello, Text!";
     std::int32_t width  = 738;
     std::int32_t height = 480;
-    constexpr auto FONT_SIZE = 32;  // In Pixels
+    constexpr auto FONT_SIZE = 11;  // In Pixels
     constexpr auto FT_RENDER_FLAGS = FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
+    // constexpr auto FT_RENDER_FLAGS = FT_LOAD_RENDER;
+    constexpr auto SAMPLE_COUNT = 4;
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+    glfwWindowHint(GLFW_SAMPLES, SAMPLE_COUNT);
     auto window = txt::new_window(title, width, height);
+
+    glfwSetCharCallback(window->native(), [](GLFWwindow*, unsigned int codepoint) {
+        text_buffer.push_back(codepoint);
+        // std::u32string txt{{codepoint}};
+        // utf8::utf32to8(std::begin(txt), std::end(txt), std::back_inserter(text_buffer));
+        // fmt::print("{}\n", text_buffer);
+    });
+    glfwSetKeyCallback(window->native(), [](GLFWwindow*, int key, int, int action, int) {
+        if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
+            text_buffer.push_back(U'\n');
+        }
+        if (key == GLFW_KEY_BACKSPACE && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+            if (text_buffer.size() > 0)
+                text_buffer.erase(text_buffer.size() - 1, 1);
+        }
+    });
+
+    utf8::utf8to32(test_text, test_text + std::strlen(test_text), std::back_inserter(text_buffer));
 
     std::unordered_map<std::uint32_t, character> chars_map;
     bool is_regen_atlas = true;
@@ -494,8 +541,12 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         fmt::print("Failed initialising FreeType");
         return 1;
     }
+    FT_Library_SetLcdFilter(font_library, FT_LCD_FILTER_DEFAULT);
 
-    std::string font_path{"deps/fonts/Cozette/CozetteVector.ttf"};
+    // std::string font_path{"deps/fonts/Cozette/CozetteVector.otf"};
+    // std::string font_path{"deps/fonts/RobotoMono/RobotoMonoNerdFontMono-Medium.ttf"};
+    // std::string font_path{"deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf"};
+    std::string font_path{"deps/fonts/SFMono/SFMono Semibold Nerd Font Complete.otf"};
     if (!std::filesystem::exists(font_path)) {
         fmt::print("Font file: {:s} does not exist!", font_path);
         return 1;
@@ -511,6 +562,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
     }
 
     FT_Set_Pixel_Sizes(font_face, 0, FONT_SIZE);
+    // FT_Set_Char_Size(font_face, 0, FONT_SIZE * 64, 300, 300);
     std::uint32_t max_size = 0;
 
     auto load_font = [&](FT_Face face, std::uint32_t code) {
@@ -526,6 +578,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         auto const top     = face->glyph->bitmap_top;
         auto const advance = face->glyph->advance.x;
         auto const size    = width * height;
+        auto const space   = face->size->metrics.height;
 
         std::vector<std::uint8_t> data;
         data.resize(size);
@@ -536,7 +589,8 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
             {left, top},      // bearing
             advance,
             {0.0f, 0.0f},     // uv location initialise with 0,0
-            data
+            data,
+            space
         };
 
         auto const& it = chars_map.find(code);
@@ -583,29 +637,34 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         if (is_regen_atlas) ch_uv = {0, 0};
 
         for (auto& [code, font] : chars_map) {
-            auto const width   = font.size.x;
-            auto const height  = font.size.y;
-            auto const& data = font.data;
-            for (std::size_t i = 0; i < height; ++i) {
-                for (std::size_t j = 0; j < width; ++j) {
-                    auto const data_index = i * width + j;
-                    auto const buffer_index = (ch_uv.y + i) * size + (ch_uv.x + j);
+            auto const width  = font.size.x;
+            auto const height = font.size.y;
+            auto const& data  = font.data;
+            for (std::size_t i = 0; i < std::size_t(height); ++i) {
+                for (std::size_t j = 0; j < std::size_t(width); ++j) {
+                    auto const data_index = i * std::size_t(width) + j;
+                    auto const buffer_index = (std::size_t(ch_uv.y) + i) * size + (std::size_t(ch_uv.x) + j);
                     buffer[buffer_index] = data[data_index];
                 }
             }
             // Update character map uv coordinate
             font.uv = {
                 ch_uv.x,
-                size - ch_uv.y - height // We need to flip this because OpenGL texture is upside down
+                // ch_uv.y
+                std::int32_t(size) - ch_uv.y - height // We need to flip this because OpenGL texture is upside down
             };
 
+            // std::string txt = utf8::utf32to8(std::u32string{code});
+            // fmt::print("{}: {}x{}\n", txt, ch_uv.x, ch_uv.y);
+
             ch_uv.x += max_size;
-            if (ch_uv.x + max_size >= std::int32_t(size)) {
+            if (ch_uv.x >= std::int32_t(size - max_size)) {
                 ch_uv.x = 0;
                 ch_uv.y += max_size;
             }
         }
 
+        stbi_write_png("test.png", std::int32_t(size), std::int32_t(size), 1, buffer.data(), std::int32_t(size) * 1);
         // Flip horizontal axis
         for (std::uint32_t i = 0; i < size / 2; i++) {
             for (std::uint32_t j = 0; j < size; j++) {
@@ -617,16 +676,18 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
                 buffer[bot_idx] = a;
             }
         }
-        // stbi_write_png("test.png", size, size, 1, buffer.data(), size * 1);
 
         is_regen_atlas = false;
-        texture = txt::new_texture(buffer.data(), size, size, 1, GL_RED, GL_UNSIGNED_BYTE);
+        // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        texture = txt::new_texture(buffer.data(), size, size, 1, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
         texture->bind();
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glGenerateMipmap(GL_TEXTURE_2D);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        // glGenerateMipmap(GL_TEXTURE_2D);
     };
     generate_atlas();
 
@@ -640,11 +701,13 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         auto const ypos = position.y - float(ch.size.y - ch.bearing.y);
         auto const w = float(ch.size.x);
         auto const h = float(ch.size.y);
+        auto const u = float(ch.uv.x);
+        auto const v = float(ch.uv.y);
 
         gpu_character gpu_ch{
             {w, h},
             {xpos, ypos},
-            ch.uv
+            {u, v}
         };
         if (text_size < gpu_chars.size())
             gpu_chars[text_size] = gpu_ch;
@@ -658,19 +721,11 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         auto const& ch = it->second;
         push_char(ch, position);
     };
-    auto end_text = [&] {
-        char_vertex->resize(text_size * sizeof(gpu_character));
-        char_vertex->sub_data(gpu_chars.data(), text_size * sizeof(gpu_character));
-        vertex_array->bind();
-        quad_index->bind();
-        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(quad_index->size()), GLenum(quad_index->type()), nullptr, GLsizei(text_size));
-    };
-
-    auto render_text = [&](std::string const& text, float const& line_spacing = 1.2f) {
-        begin_text();
+    auto render_text = [&](std::string const& text, glm::vec2 position = {0.0f, 0.0f}) {
         std::u32string u32txt;
         utf8::utf8to32(std::begin(text), std::end(text), std::back_inserter(u32txt));
-        glm::vec2 pos{};
+        glm::vec2 pos{position};
+        glm::vec2 end_pos{position};
         for (auto const& code : u32txt) {
             auto it = chars_map.find(code);
             if (it == std::end(chars_map)) {
@@ -680,25 +735,37 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
                     is_regen_atlas = true;
                     generate_atlas();
                 } else {
-                    it = chars_map.find(0);
+                    it = chars_map.find(' ');
                 }
             }
             auto const& ch = it->second;
 
             if (code == '\n') {
                 pos.x = 0.0f;
-                pos.y -= float(ch.bearing.y) * line_spacing;
+                pos.y -= float(ch.height >> 6);
             } else {
                 push_char(ch, pos);
                 pos.x += float(ch.advance >> 6);
+                end_pos.y = pos.y;
+                end_pos.x = pos.x - float(ch.advance >> 6) / 2.0f;
             }
         }
-        end_text();
+        return end_pos;
+    };
+    auto end_text = [&] {
+        if (text_size == 0) return;
+        char_vertex->resize(text_size * sizeof(gpu_character));
+        char_vertex->sub_data(gpu_chars.data(), text_size * sizeof(gpu_character));
+        vertex_array->bind();
+        quad_index->bind();
+        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(quad_index->size()), GLenum(quad_index->type()), nullptr, GLsizei(text_size));
     };
 
     glm::vec3 camera_position{0.0f, 0.0f, 10.0f};
     glm::vec3 camera_front{0.0f, 0.0f, -1.0f};
     glm::vec3 camera_up{0.0f, 1.0f, 0.0f};
+    auto is_on = true;
+    std::uint64_t tick = 0;
 
     auto is_running = true;
     while(is_running) {
@@ -710,23 +777,29 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         if (glfwGetMouseButton(window->native(), GLFW_MOUSE_BUTTON_1) == GLFW_PRESS) {
         }
 
+        ++tick;
+
         glm::mat4 model{1.0f};
         glm::mat4 view = glm::lookAt(camera_position, camera_position + camera_front, camera_up);
         glm::mat4 projection = glm::ortho(0.0f, float(width), 0.0f, float(height), 0.1f, 100.0f);
+        // glm::mat4 projection = glm::ortho(0.0f, float(width), float(height), 0.0f, 0.1f, 100.0f);
 
         // Clear screen
         glViewport(0, 0, width, height);
         // glEnable(GL_CULL_FACE);
         // glFrontFace(GL_CW);
         glEnable(GL_BLEND);
+        glEnable(GL_MULTISAMPLE);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_DEPTH);
+        glDepthFunc(GL_LESS);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // render_text(shader_id, "Hello, World!", {25.0f, 25.0f}, 1.0f, {0.5, 0.8f, 0.2f});
-
-        model = glm::translate(model, glm::vec3{200.0f, 200.0f, 0.0f});
-        // model = glm::scale(model, glm::vec3(1.0f));
+        model = glm::translate(model, glm::vec3{0.0f, float(height) - float(FONT_SIZE), 0.0f});
+        // model = glm::rotate(model, glm::radians(180.0f), glm::vec3{1.0f, 0.0f, 0.0f});
+        // model = glm::scale(model, glm::vec3{1.0f/float(SAMPLE_COUNT)});
+        // model = glm::scale(model, glm::vec3{2.0f});
         texture->bind();
         shader->bind();
         shader->set_num("u_texture", 0);
@@ -736,7 +809,23 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         shader->set_mat4("u_view", view);
         shader->set_mat4("u_projection", projection);
 
-        render_text("Hello, World!\nHej Charlie! \uf126");
+        begin_text();
+        std::string txt{};
+        utf8::utf32to8(std::begin(text_buffer), std::end(text_buffer), std::back_inserter(txt));
+        auto const end_pos = render_text(txt);
+        end_text();
+
+        if (tick % 100 == 0) {
+            is_on = !is_on;
+        }
+        if (is_on) {
+            shader->set_vec3("u_color", {1.0f, 1.0f, 1.0f});
+        } else {
+            shader->set_vec3("u_color", {0.0f, 0.0f, 0.0f});
+        }
+        begin_text();
+        push_code(U'|', end_pos);
+        end_text();
 
         window->swap();
         window->poll();
