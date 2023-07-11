@@ -721,6 +721,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
             if (code == '\n') {
                 pos.x = 0.0f;
                 pos.y -= float(previous_height >> 6);
+                continue;
             }
 
             auto it = chars_map.find(code);
@@ -787,7 +788,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         }
     });
 
-    text_buffer = utf8::utf8to32(std::string{"Hello, World!"});
+    text_buffer = utf8::utf8to32(std::string{"Hello, World!\n   Hej Charlie \uf126"});
 
     auto is_running = true;
     while(is_running) {
