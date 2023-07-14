@@ -14,6 +14,7 @@
 #include "ft2build.h"
 #include FT_FREETYPE_H
 #include FT_LCD_FILTER_H
+#include FT_BITMAP_H
 
 #include "glm/vec2.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -36,12 +37,27 @@ constexpr auto len(T (&)[N]) -> std::size_t {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
+
 [[maybe_unused]]static auto info_opengl() -> void {
     fmt::print("OpenGL Info:\n");
     fmt::print("    Vendor:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VENDOR)));
     fmt::print("    Renderer: {:s}\n", reinterpret_cast<char const*>(glGetString(GL_RENDERER)));
     fmt::print("    Version:  {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VERSION)));
     fmt::print("    Shader:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
+}
+
+[[maybe_unused]]static auto debug_callback_opengl(
+    [[maybe_unused]]GLenum source,
+    [[maybe_unused]]GLenum type,
+    [[maybe_unused]]GLuint id,
+    [[maybe_unused]]GLenum severity,
+    [[maybe_unused]]GLsizei length,
+    [[maybe_unused]]GLchar const* message,
+    [[maybe_unused]]void const* userParam
+) -> void {
+    if (severity == GL_DEBUG_SEVERITY_MEDIUM) {
+        fmt::print("OpenGL: {}\n", message);
+    }
 }
 
 class window {
@@ -60,8 +76,11 @@ public:
         if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
             throw std::runtime_error(fmt::format("Failed to initialize GLAD\n"));
         }
-
         info_opengl();
+
+        // Enable debug output
+        glEnable(GL_DEBUG_OUTPUT);
+        glDebugMessageCallback(debug_callback_opengl, nullptr);
 
         m_monitor = glfwGetPrimaryMonitor();
         glfwGetWindowSize(m_native, &m_width, &m_height);
@@ -91,6 +110,79 @@ private:
 using window_ref_t = std::shared_ptr<window>;
 auto new_window(std::string const& title, std::int32_t const& width, std::int32_t const& height) -> window_ref_t {
     return std::make_shared<window>(title, width, height);
+}
+
+class image {
+public:
+    image(std::uint8_t const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels)
+        : m_buffer(nullptr)
+        , m_width(width)
+        , m_height(height)
+        , m_channels(channels)
+        , m_size(width * height * channels) {
+        m_buffer = new std::uint8_t[m_size];
+        std::copy(data, data + m_size, m_buffer);
+    }
+    image(std::size_t const& width, std::size_t const& height, std::size_t const& channels)
+        : m_buffer(new std::uint8_t[width * height * channels])
+        , m_width(width)
+        , m_height(height)
+        , m_channels(channels)
+        , m_size(width * height * channels) {
+        std::fill_n(m_buffer, m_size, 0);
+    }
+    ~image() {
+        delete[] m_buffer;
+    }
+
+    auto width() const noexcept -> std::size_t { return m_width; }
+    auto height() const noexcept -> std::size_t { return m_height; }
+    auto channels() const noexcept -> std::size_t { return m_channels; }
+    auto data() const noexcept -> std::uint8_t const* { return m_buffer; }
+    auto pixel(std::size_t const& x, std::size_t const& y) const noexcept -> glm::vec4 {
+        if (x < 0 || x > m_width - 1 || y < 0 || y > m_height - 1) return {};
+        auto const index = (y * m_channels * m_width) + (x * m_channels);
+        glm::vec4 color{};
+        for (std::size_t i = 0; i < m_channels; i++)
+            color[std::int32_t(i)] = float(m_buffer[index + i]) / 255.0f;
+        return color;
+    };
+
+    auto set_pixel(std::size_t const& x, std::size_t const& y, glm::vec4 const& color) const noexcept -> void {
+        if (x < 0 || x > m_width - 1 || y < 0 || y > m_height - 1) return;
+        auto const index = (y * m_channels * m_width) + (x * m_channels);
+        for (std::size_t i = 0; i < m_channels && i < 4; i++)
+            m_buffer[index + i] = std::uint8_t(color[std::int32_t(i)] * 255.0f);
+    }
+
+    auto fliph() -> void {
+        for (std::size_t i = 0; i < m_height / 2; i++) {
+            for (std::uint32_t j = 0; j < m_width; j++) {
+                auto const a = pixel(j, i);
+                auto const b = pixel(j, m_height - i - 1);
+                set_pixel(j, i, b);
+                set_pixel(j, m_height - i - 1, a);
+            }
+        }
+    }
+    auto write_png(std::string const& filename) const -> void {
+        stbi_write_png(filename.c_str(), std::int32_t(m_width), std::int32_t(m_height), std::int32_t(m_channels), m_buffer, std::int32_t(m_width * m_channels));
+    }
+
+private:
+    std::uint8_t* m_buffer;
+    std::size_t   m_width;
+    std::size_t   m_height;
+    std::size_t   m_channels;
+    std::size_t   m_size;
+};
+
+using image_ref_t = std::shared_ptr<image>;
+auto new_image(std::uint8_t const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels) -> image_ref_t {
+    return std::make_shared<image>(data, width, height, channels);
+}
+auto new_image(std::size_t const& width, std::size_t const& height, std::size_t const& channels) -> image_ref_t {
+    return std::make_shared<image>(width, height, channels);
 }
 
 class texture {
@@ -440,14 +532,15 @@ void main() {
 )glsl";
 
 [[maybe_unused]]static constexpr auto fragment_shader = R"glsl(#version 410 core
-layout(location = 0) out vec4 color;
+layout(location = 0, index = 0) out vec4 color;
+layout(location = 0, index = 1) out vec4 color_mask;
 
 in vec2 _uv;
 in vec2 _size;
 in vec2 _offset;
 
 uniform vec2 u_size;
-uniform vec3 u_color;
+uniform vec4 u_color;
 uniform sampler2D u_texture;
 
 void main() {
@@ -456,10 +549,12 @@ void main() {
         _uv.y * (_size.y / u_size.y) + (_offset.y / u_size.y)
     );
 
-    float d = texture(u_texture, uv).r;
-    float aaf = fwidth(d);
-    float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
-    color = vec4(u_color, d);
+    // float d = texture(u_texture, uv).r;
+    // float aaf = fwidth(d);
+    // float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
+    vec4 s = texture(u_texture, uv);  // Texture sample
+    color = u_color;
+    color_mask = u_color.a * s;
 }
 )glsl";
 }
@@ -469,8 +564,8 @@ struct character {
     glm::ivec2    bearing;     // Offset from baseline to left/top of glyph
     std::int64_t  advance;     // Offset to advance to next glyph
     glm::vec2     uv;
-    std::vector<std::uint8_t> data;
     std::int64_t  height;
+    txt::image_ref_t buffer;
 };
 
 struct gpu_character {
@@ -497,11 +592,11 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
     std::string  title  = "Hello, Text!";
     std::int32_t width  = 738;
     std::int32_t height = 480;
-    constexpr auto FONT_SIZE = 13;  // In Pixels
+    constexpr auto FONT_SIZE = 11;  // In Pixels
     // constexpr auto FT_RENDER_FLAGS = FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
-    constexpr auto FT_RENDER_FLAGS = FT_LOAD_RENDER;
-    constexpr auto SAMPLE_COUNT = 4;
-    glfwWindowHint(GLFW_SAMPLES, SAMPLE_COUNT);
+    constexpr auto FT_RENDER_FLAGS = FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_LCD);
+    // constexpr auto SAMPLE_COUNT = 4;
+    // glfwWindowHint(GLFW_SAMPLES, SAMPLE_COUNT);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     auto window = txt::new_window(title, width, height);
 
@@ -514,10 +609,12 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         fmt::print("Failed initialising FreeType");
         return 1;
     }
+    FT_Bitmap target_bitmap;
+    FT_Bitmap_Init(&target_bitmap);
     FT_Library_SetLcdFilter(font_library, FT_LCD_FILTER_DEFAULT);
 
-    std::string font_path{"deps/fonts/Cozette/CozetteVector.ttf"};
-    // std::string font_path{"deps/fonts/RobotoMono/RobotoMonoNerdFontMono-Regular.ttf"};
+    // std::string font_path{"deps/fonts/Cozette/CozetteVector.ttf"};
+    std::string font_path{"deps/fonts/RobotoMono/RobotoMonoNerdFontMono-Regular.ttf"};
     // std::string font_path{"deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf"};
     // std::string font_path{"deps/fonts/SFMono/SFMono Semibold Nerd Font Complete.otf"};
     if (!std::filesystem::exists(font_path)) {
@@ -535,7 +632,6 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
     }
 
     FT_Set_Pixel_Sizes(font_face, 0, FONT_SIZE);
-    // FT_Set_Char_Size(font_face, 0, FONT_SIZE * 64, 300, 300);
     std::uint32_t max_size = 0;
 
     auto load_font = [&](FT_Face face, std::uint32_t code) {
@@ -544,26 +640,26 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         if (FT_Load_Glyph(face, index, FT_RENDER_FLAGS))
             return;
 
-        auto const width   = face->glyph->bitmap.width;
-        auto const height  = face->glyph->bitmap.rows;
-        auto const bitmap  = face->glyph->bitmap.buffer;
-        auto const left    = face->glyph->bitmap_left;
-        auto const top     = face->glyph->bitmap_top;
-        auto const advance = face->glyph->advance.x;
-        auto const size    = width * height;
+        std::uint32_t const channels = 3;
+        auto const& glyph  = face->glyph;
+        auto const& bitmap = glyph->bitmap;
+        auto const width   = bitmap.width / channels;
+        auto const height  = bitmap.rows;
+        auto const left    = glyph->bitmap_left;
+        auto const top     = glyph->bitmap_top;
+        auto const advance = glyph->advance.x;
         auto const space   = face->size->metrics.height;
 
-        std::vector<std::uint8_t> data;
-        data.resize(size);
-        std::copy(bitmap, bitmap + size, std::begin(data));
+        FT_Bitmap_Convert(font_library, &bitmap, &target_bitmap, 1);
+        auto image = txt::new_image(target_bitmap.buffer, width, height, channels);
 
         auto const ch = character{
             {width, height},  // size
             {left, top},      // bearing
             advance,
             {0.0f, 0.0f},     // uv location initialise with 0,0
-            data,
-            space
+            space,
+            image
         };
 
         auto const& it = chars_map.find(code);
@@ -606,31 +702,27 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         auto const cols       = static_cast<std::uint32_t>(std::ceil(std::sqrt(chars_map.size())));
         auto const max_sizep2 = static_cast<std::uint32_t>(round_up2(max_size));
         auto const size       = static_cast<std::uint32_t>(round_up2(cols * max_sizep2));
-        std::vector<std::uint8_t> buffer{};
-        buffer.resize(size * size);
+        auto atlas = txt::new_image(size, size, 3);
         if (is_regen_atlas) ch_uv = {0, 0};
 
         for (auto& [code, font] : chars_map) {
-            auto const width  = font.size.x;
-            auto const height = font.size.y;
-            auto const& data  = font.data;
+            auto const& img = font.buffer;
 
-            for (std::size_t i = 0; i < std::size_t(height); ++i) {
-                for (std::size_t j = 0; j < std::size_t(width); ++j) {
-                    auto const data_index = i * std::size_t(width) + j;
-                    auto const buffer_index = (std::size_t(ch_uv.y) + i) * size + std::size_t(ch_uv.x) + j;
-                    buffer[buffer_index] = data[data_index];
+            for (std::size_t i = 0; i < img->height(); ++i) {
+                for (std::size_t j = 0; j < img->width(); ++j) {
+                    auto const pixel = img->pixel(j, i);
+                    atlas->set_pixel(std::size_t(ch_uv.x) + j, std::size_t(ch_uv.y) + i, pixel);
                 }
             }
             // Update character map uv coordinate
             font.uv = {
                 ch_uv.x,
                 // ch_uv.y
-                std::int32_t(size) - ch_uv.y - height // We need to flip this because OpenGL texture is upside down
+                std::int32_t(size) - ch_uv.y - std::int32_t(img->height()) // We need to flip this because OpenGL texture is upside down
             };
 
             // std::string txt = utf8::utf32to8(std::u32string{code});
-            // fmt::print("{}: {}x{}\n", txt, ch_uv.x, ch_uv.y);
+            // fmt::print("'{}': {}x{} {}x{}\n", txt, ch_uv.x, ch_uv.y, img->width(), img->height());
 
             ch_uv.x += max_sizep2;
             if (ch_uv.x >= std::int32_t(size)) {
@@ -639,29 +731,19 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
             }
         }
 
-        // Flip horizontal axis
-        for (std::uint32_t i = 0; i < size / 2; i++) {
-            for (std::uint32_t j = 0; j < size; j++) {
-                auto const top_idx = i * size + j;
-                auto const bot_idx = (size - 1 - i) * size + j;
-                auto const a = buffer[top_idx];
-                auto const b = buffer[bot_idx];
-                buffer[top_idx] = b;
-                buffer[bot_idx] = a;
-            }
-        }
-        stbi_write_png("test.png", std::int32_t(size), std::int32_t(size), 1, buffer.data(), std::int32_t(size) * 1);
+        atlas->fliph();
+        atlas->write_png("test.png");
 
         is_regen_atlas = false;
         // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        texture = txt::new_texture(buffer.data(), size, size, 1, GL_RED, GL_RED, GL_UNSIGNED_BYTE);
+        texture = txt::new_texture(atlas->data(), std::uint32_t(atlas->width()), std::uint32_t(atlas->height()), std::uint32_t(atlas->channels()), GL_RGB, GL_RGB, GL_UNSIGNED_BYTE);
         texture->bind();
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         // glGenerateMipmap(GL_TEXTURE_2D);
         texture->unbind();
     };
@@ -788,15 +870,10 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         }
     });
 
-    text_buffer = utf8::utf8to32(std::string{"Hello, World!\n   Hej Charlie \uf126"});
-
     auto is_running = true;
     while(is_running) {
         is_running = !glfwWindowShouldClose(window->native());
         glfwGetFramebufferSize(window->native(), &width, &height);
-        // if (glfwGetKey(window->native(), GLFW_KEY_Q) == GLFW_PRESS) {
-        //     is_running = false;
-        // }
 
         auto const frame_time = current_time - previous_time;
         previous_time = current_time;
@@ -810,18 +887,18 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         glm::mat4 model{1.0f};
         glm::mat4 view = glm::lookAt(camera_position, camera_position + camera_front, camera_up);
         glm::mat4 projection = glm::ortho(0.0f, float(width), 0.0f, float(height), 0.1f, 100.0f);
-        // glm::mat4 projection = glm::ortho(0.0f, float(width), float(height), 0.0f, 0.1f, 100.0f);
 
         // Clear screen
         glViewport(0, 0, width, height);
-        // glEnable(GL_CULL_FACE);
-        // glFrontFace(GL_CW);
+        glEnable(GL_CULL_FACE);
+        glFrontFace(GL_CW);
         glEnable(GL_BLEND);
-        glEnable(GL_MULTISAMPLE);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBlendFunc(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR);
+
         glEnable(GL_DEPTH);
         glDepthFunc(GL_LESS);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(20.0f / 255.0f, 24.0f / 255.0f, 36.0f / 255.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         model = glm::translate(model, glm::vec3{0.0f, float(height) - (float(FONT_SIZE) + font_size_offset), 0.0f});
@@ -834,7 +911,8 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         shader->set_num("u_texture", 0);
         shader->set_vec2("u_size", {float(texture->width()), float(texture->height())});
         // shader->set_vec3("u_color", {0.25f, 0.75f, 1.0f});
-        shader->set_vec3("u_color", glm::vec3{1.0f});
+        // shader->set_vec4("u_color", glm::vec4{1.0f});
+        shader->set_vec4("u_color", glm::vec4{203.0f / 255.0f, 206.0f / 255.0f, 188.0f / 255.0f, 1.0f});
         shader->set_mat4("u_model", model);
         shader->set_mat4("u_view", view);
         shader->set_mat4("u_projection", projection);
@@ -846,9 +924,9 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
         end_text();
 
         if (is_on) {
-            shader->set_vec3("u_color", glm::vec3(0.95f));
+            shader->set_vec4("u_color", glm::vec4(0.95f));
         } else {
-            shader->set_vec3("u_color", {0.0f, 0.0f, 0.0f});
+            shader->set_vec4("u_color", glm::vec4{0.0f});
         }
         begin_text();
         push_code(U'█', end_pos);
@@ -856,7 +934,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
 
         model = glm::mat4{1.0f};
         shader->set_mat4("u_model", model);
-        shader->set_vec3("u_color", {1.0f, 1.0f, 1.0f});
+        shader->set_vec4("u_color", glm::vec4{1.0f});
         begin_text();
         render_text(fmt::format("font size: {}", FONT_SIZE + std::int32_t(font_size_offset)));
         end_text();
@@ -866,6 +944,7 @@ auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
     }
 
     // Clean up FreeType resources
+    FT_Bitmap_Done(font_library, &target_bitmap);
     FT_Done_Face(font_face);
     FT_Done_FreeType(font_library);
     return 0;

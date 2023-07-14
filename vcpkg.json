@@ -3,14 +3,15 @@
     "glfw3",
     {
       "name": "freetype",
-      "default-features": false
+      "default-features": false,
+      "features": ["error-strings"]
     },
     "fmt",
     "glm",
     {
       "name": "glad",
       "default-features": false,
-      "features": ["gl-api-41"]
+      "features": ["gl-api-41", "extensions"]
     },
     "utfcpp"
   ]
