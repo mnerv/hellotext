@@ -1,0 +1,29 @@
+#version 410 core
+layout(location = 0) out vec4 color;
+// layout(location = 0, index = 0) out vec4 color;
+// layout(location = 0, index = 1) out vec4 color_mask;
+
+in vec2 _uv;
+in vec2 _size;
+in vec2 _offset;
+
+uniform vec2 u_size;
+uniform vec4 u_color;
+uniform sampler2D u_texture;
+
+void main() {
+    vec2 uv = vec2(
+        _uv.x * (_size.x / u_size.x) + (_offset.x / u_size.x),
+        _uv.y * (_size.y / u_size.y) + (_offset.y / u_size.y)
+    );
+
+    float d = texture(u_texture, uv).r;
+    // float aaf = fwidth(d);
+    // float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
+    color = vec4(u_color.rgb, d);
+    // color = vec4(1.0, 0.0, 1.0, 1.0);
+
+    // vec4 s = texture(u_texture, uv);  // Texture sample
+    // color = u_color;
+    // color_mask = u_color.a * s;
+}

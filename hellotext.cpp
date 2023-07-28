@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <memory>
 #include <numeric>
+#include <fstream>
+#include <functional>
 
 #include "fmt/format.h"
 #include "glad/glad.h"
@@ -46,28 +48,39 @@ constexpr auto len(T (&)[N]) -> std::size_t {
     fmt::print("    Shader:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
 }
 
-[[maybe_unused]]static auto debug_callback_opengl(
-    [[maybe_unused]]GLenum source,
-    [[maybe_unused]]GLenum type,
-    [[maybe_unused]]GLuint id,
-    [[maybe_unused]]GLenum severity,
-    [[maybe_unused]]GLsizei length,
-    [[maybe_unused]]GLchar const* message,
-    [[maybe_unused]]void const* userParam
-) -> void {
-    if (severity == GL_DEBUG_SEVERITY_MEDIUM) {
-        fmt::print("OpenGL: {}\n", message);
-    }
+[[maybe_unused]]static auto clear_color(std::uint32_t color, float alpha = 1.0f) -> void {
+    auto const r = float((color >> 16) & 0xFF) / 255.0f;
+    auto const g = float((color >>  8) & 0xFF) / 255.0f;
+    auto const b = float((color >>  0) & 0xFF) / 255.0f;
+    glClearColor(r, g, b, alpha);
 }
+
+auto read_text(std::filesystem::path const& filename) -> std::string {
+    if (!std::filesystem::exists(filename))
+        throw std::runtime_error(fmt::format("File \"{:s}\" does not exist!", filename.string()));
+    std::ifstream input{filename, std::ios::in};
+    if (!input.is_open() || input.fail())
+        throw std::runtime_error(fmt::format("Failed to load \"{:s}\" text file!", filename.string()));
+    return {
+        std::istreambuf_iterator<char>(input),
+        std::istreambuf_iterator<char>()
+    };
+}
+
+struct window_props {
+    std::string  title;
+    std::int32_t width;
+    std::int32_t height;
+};
 
 class window {
 public:
-    window(std::string const& title, std::int32_t const& width, std::int32_t const& height) {
+    window(window_props const& props) {
         if (glfwInit() == GLFW_FALSE)
             throw std::runtime_error(fmt::format("Failed to initialize GLFW\n"));
         setup_opengl();
 
-        m_native = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+        m_native = glfwCreateWindow(props.width, props.height, props.title.c_str(), nullptr, nullptr);
         if (m_native == nullptr) {
             throw std::runtime_error(fmt::format("Failed to create GLFW window\n"));
         }
@@ -78,38 +91,56 @@ public:
         }
         info_opengl();
 
-        // Enable debug output
-        glEnable(GL_DEBUG_OUTPUT);
-        glDebugMessageCallback(debug_callback_opengl, nullptr);
+        // Setup event
+        glfwSetWindowUserPointer(m_native, this);
+        glfwSetWindowSizeCallback(m_native, [](GLFWwindow* window, int width, int height) {
+            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+            ptr->m_width  = width;
+            ptr->m_height = height;
+        });
+        glfwSetFramebufferSizeCallback(m_native,  [](GLFWwindow* window, int width, int height) {
+            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+            ptr->m_buffer_width  = width;
+            ptr->m_buffer_height = height;
+        });
+        glfwSetWindowCloseCallback(m_native, [](GLFWwindow* window) {
+            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+            ptr->m_should_close = true;
+        });
 
-        m_monitor = glfwGetPrimaryMonitor();
         glfwGetWindowSize(m_native, &m_width, &m_height);
-        glfwGetMonitorContentScale(m_monitor, &m_monitor_content_scale.x, &m_monitor_content_scale.y);
+        glfwGetFramebufferSize(m_native, &m_buffer_width, &m_buffer_height);
     }
     ~window() {
         glfwDestroyWindow(m_native);
         glfwTerminate();
     }
 
-    auto monitor_content_scale() const -> glm::vec2 const& { return m_monitor_content_scale; };
+    auto width() const -> std::int32_t { return m_width; }
+    auto height() const -> std::int32_t { return m_height; }
+    auto buffer_width() const -> std::int32_t { return m_buffer_width; }
+    auto buffer_height() const -> std::int32_t { return m_buffer_height; }
+    auto should_close() const -> bool { return m_should_close; }
     auto native() -> GLFWwindow* { return m_native; }
     auto time() -> double { return glfwGetTime(); }
 
+    auto close() -> void { m_should_close = true; }
     auto swap() -> void { glfwSwapBuffers(m_native); }
     auto poll() -> void { glfwPollEvents(); }
 
 private:
-    GLFWwindow* m_native;
-    GLFWmonitor* m_monitor;
+    GLFWwindow*  m_native;
 
     std::int32_t m_width{0};
     std::int32_t m_height{0};
-    glm::vec2    m_monitor_content_scale{};
+    std::int32_t m_buffer_width{0};
+    std::int32_t m_buffer_height{0};
+    bool         m_should_close{false};
 };
 
 using window_ref_t = std::shared_ptr<window>;
-auto new_window(std::string const& title, std::int32_t const& width, std::int32_t const& height) -> window_ref_t {
-    return std::make_shared<window>(title, width, height);
+auto new_window(window_props const& props) -> window_ref_t {
+    return std::make_shared<window>(props);
 }
 
 class image {
@@ -131,9 +162,16 @@ public:
         , m_size(width * height * channels) {
         std::fill_n(m_buffer, m_size, 0);
     }
-    ~image() {
-        delete[] m_buffer;
+    image(image const& img)
+        : m_buffer(nullptr)
+        , m_width(img.m_width)
+        , m_height(img.m_height)
+        , m_channels(img.m_channels)
+        , m_size(m_width * m_height * m_channels) {
+        m_buffer = new std::uint8_t[m_size];
+        std::memcpy(m_buffer, img.m_buffer, m_size);
     }
+    ~image() { delete[] m_buffer; }
 
     auto width() const noexcept -> std::size_t { return m_width; }
     auto height() const noexcept -> std::size_t { return m_height; }
@@ -325,10 +363,10 @@ public:
 
     auto size() const -> std::size_t { return m_size; }
     auto type() const -> std::uint32_t { return m_type; }
-    auto bind() -> void {
+    auto bind() const -> void {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_id);
     }
-    auto unbind() -> void {
+    auto unbind() const -> void {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
@@ -410,7 +448,6 @@ auto new_vertex_array() -> vertex_array_ref_t {
     return std::make_shared<vertex_array>();
 }
 
-
 class shader {
 public:
     shader(std::string const& vs_src, std::string const& fs_src) : m_id(0) {
@@ -464,10 +501,10 @@ private:
         glGetShaderiv(shader, GL_COMPILE_STATUS, &is_success);
         if (!is_success) {
             glGetShaderInfoLog(shader, LOG_SIZE, nullptr, info_log);
-            fmt::print("SHADER::{}SHADER::COMPILE_FAILED {}",
-                        type == GL_VERTEX_SHADER ? "VERTEX_" : "FRAGMENT_",
-                        info_log);
-            throw std::runtime_error("Shader compilation error");
+            auto const err_str = fmt::format("shader compile error [{}] - {}",
+                type == GL_VERTEX_SHADER ? "vertex_" : "fragment",
+                info_log);
+            throw std::runtime_error(err_str);
         }
 
         return shader;
@@ -485,8 +522,8 @@ private:
         glGetProgramiv(program, GL_LINK_STATUS, &is_success);
         if (!is_success) {
             glGetProgramInfoLog(program, LOG_SIZE, nullptr, info_log);
-            fmt::print("SHADER::LINK {}", info_log);
-            throw std::runtime_error("Shader linking error");
+            auto const err_str = fmt::format("shader link error - ", info_log);
+            throw std::runtime_error(err_str);
         }
 
         glUseProgram(program);
@@ -504,448 +541,350 @@ auto new_shader(std::string const& vs_src, std::string const& fs_src) -> shader_
     return std::make_shared<shader>(vs_src, fs_src);
 }
 
-[[maybe_unused]]static constexpr auto vertex_shader = R"glsl(#version 410 core
-layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec2 a_uv;
+struct typeface {
+    glm::ivec2   bearing;
+    std::int64_t advance_x;
+    std::int64_t advance_y;
+    image_ref_t  bitmap{nullptr};
+    glm::ivec2   uv{0, 0};
+};
+using charset_t = std::unordered_map<std::uint32_t, typeface>;
 
-// Instancing
-layout(location = 2) in vec2 a_size;
-layout(location = 3) in vec2 a_offset;
-layout(location = 4) in vec2 a_uv_offset;
-
-out vec2 _uv;
-out vec2 _size;
-out vec2 _offset;
-
-uniform mat4 u_model;
-uniform mat4 u_view;
-uniform mat4 u_projection;
-
-void main() {
-    _uv = a_uv;
-    _size = a_size;
-    _offset = a_uv_offset;
-    vec3 position = a_position;
-    position.xy = (position.xy * a_size + a_offset);
-    gl_Position = u_projection * u_view * u_model * vec4(position, 1.0);
-}
-)glsl";
-
-[[maybe_unused]]static constexpr auto fragment_shader = R"glsl(#version 410 core
-layout(location = 0, index = 0) out vec4 color;
-layout(location = 0, index = 1) out vec4 color_mask;
-
-in vec2 _uv;
-in vec2 _size;
-in vec2 _offset;
-
-uniform vec2 u_size;
-uniform vec4 u_color;
-uniform sampler2D u_texture;
-
-void main() {
-    vec2 uv = vec2(
-        _uv.x * (_size.x / u_size.x) + (_offset.x / u_size.x),
-        _uv.y * (_size.y / u_size.y) + (_offset.y / u_size.y)
-    );
-
-    // float d = texture(u_texture, uv).r;
-    // float aaf = fwidth(d);
-    // float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
-    vec4 s = texture(u_texture, uv);  // Texture sample
-    color = u_color;
-    color_mask = u_color.a * s;
-}
-)glsl";
-}
-
-struct character {
-    glm::ivec2    size;        // Size of the Glyph
-    glm::ivec2    bearing;     // Offset from baseline to left/top of glyph
-    std::int64_t  advance;     // Offset to advance to next glyph
-    glm::vec2     uv;
-    std::int64_t  height;
-    txt::image_ref_t buffer;
+enum class render_mode : std::uint32_t {
+    normal,
+    sdf,
+    subpixel,
+    raster
 };
 
-struct gpu_character {
-    glm::vec2 size;
-    glm::vec2 offset;
-    glm::vec2 uv;
+struct font_props {
+    std::string   filename;
+    std::uint32_t size;
+    render_mode   mode{render_mode::normal};
+    bool          is_bitmap{false};
+    shader_ref_t  shader{nullptr};
 };
 
-static constexpr float quad_vertices[] = {
-//     x,      y,     z,       u,    v,
-     0.0f,  0.0f,  0.0f,    0.0f, 0.0f,
-     0.0f,  1.0f,  0.0f,    0.0f, 1.0f,
-     1.0f,  1.0f,  0.0f,    1.0f, 1.0f,
-     1.0f,  0.0f,  0.0f,    1.0f, 0.0f,
-};
-static constexpr std::uint32_t quad_cw_indices[] = {
-    0, 1, 2,
-    0, 2, 3
-};
-
-static std::u32string text_buffer{};
-
-auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
-    std::string  title  = "Hello, Text!";
-    std::int32_t width  = 738;
-    std::int32_t height = 480;
-    constexpr auto FONT_SIZE = 11;  // In Pixels
-    // constexpr auto FT_RENDER_FLAGS = FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
-    constexpr auto FT_RENDER_FLAGS = FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_LCD);
-    // constexpr auto SAMPLE_COUNT = 4;
-    // glfwWindowHint(GLFW_SAMPLES, SAMPLE_COUNT);
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
-    auto window = txt::new_window(title, width, height);
-
-    std::unordered_map<std::uint32_t, character> chars_map;
-    bool is_regen_atlas = true;
-    glm::ivec2 ch_uv{0.0f, 0.0f};
-
-    FT_Library font_library;
-    if (FT_Init_FreeType(&font_library)) {
-        fmt::print("Failed initialising FreeType");
-        return 1;
-    }
-    FT_Bitmap target_bitmap;
-    FT_Bitmap_Init(&target_bitmap);
-    FT_Library_SetLcdFilter(font_library, FT_LCD_FILTER_DEFAULT);
-
-    // std::string font_path{"deps/fonts/Cozette/CozetteVector.ttf"};
-    std::string font_path{"deps/fonts/RobotoMono/RobotoMonoNerdFontMono-Regular.ttf"};
-    // std::string font_path{"deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf"};
-    // std::string font_path{"deps/fonts/SFMono/SFMono Semibold Nerd Font Complete.otf"};
-    if (!std::filesystem::exists(font_path)) {
-        fmt::print("Font file: {:s} does not exist!", font_path);
-        return 1;
-    }
-    FT_Face font_face;
-    auto font_error = FT_New_Face(font_library, font_path.c_str(), 0, &font_face);
-    if (font_error == FT_Err_Unknown_File_Format) {
-        fmt::print("Unknown file format!");
-        return 1;
-    } else if (font_error) {
-        fmt::print("Failed Loading font!");
-        return 1;
-    }
-
-    FT_Set_Pixel_Sizes(font_face, 0, FONT_SIZE);
-    std::uint32_t max_size = 0;
-
-    auto load_font = [&](FT_Face face, std::uint32_t code) {
-        auto const index = FT_Get_Char_Index(face, code);
-        if (index == 0) return;
-        if (FT_Load_Glyph(face, index, FT_RENDER_FLAGS))
-            return;
-
-        std::uint32_t const channels = 3;
-        auto const& glyph  = face->glyph;
-        auto const& bitmap = glyph->bitmap;
-        auto const width   = bitmap.width / channels;
-        auto const height  = bitmap.rows;
-        auto const left    = glyph->bitmap_left;
-        auto const top     = glyph->bitmap_top;
-        auto const advance = glyph->advance.x;
-        auto const space   = face->size->metrics.height;
-
-        FT_Bitmap_Convert(font_library, &bitmap, &target_bitmap, 1);
-        auto image = txt::new_image(target_bitmap.buffer, width, height, channels);
-
-        auto const ch = character{
-            {width, height},  // size
-            {left, top},      // bearing
-            advance,
-            {0.0f, 0.0f},     // uv location initialise with 0,0
-            space,
-            image
-        };
-
-        auto const& it = chars_map.find(code);
-        if (it == std::end(chars_map))
-            chars_map.insert({code, std::move(ch)});
-        else
-            chars_map[code] = std::move(ch);
-
-        auto const width_or_height = std::max(width, height);
-        max_size = std::max(max_size, width_or_height);
+class text_renderer {
+private:
+    struct gpu_tf {
+        glm::vec2 size;
+        glm::vec2 offset;
+        glm::vec2 uv;
     };
 
-    // Initial glyph loaded
-    for (std::uint32_t code = 0; code < 128; ++code) load_font(font_face, code);
+public:
+    text_renderer(font_props const& props) {
+        if (FT_Init_FreeType(&m_library))
+            throw std::runtime_error("Failed to initialse FreeType library");
+        FT_Bitmap_Init(&m_bitmap);
 
-    // Create shader
-    auto shader = txt::new_shader(txt::vertex_shader, txt::fragment_shader);
-    // Create quad vertex data
-    auto quad_vertex  = txt::new_vertex_buffer(quad_vertices, sizeof(quad_vertices), {
-        {3, "a_position"},
-        {2, "a_uv"}
-    });
-    // Create character vertex buffer
-    auto char_vertex  = txt::new_vertex_buffer(nullptr, sizeof(gpu_character), {
-        {2, "a_size",      2, 1},
-        {2, "a_offset",    3, 1},
-        {2, "a_uv_offset", 4, 1},
-    }, GL_DYNAMIC_DRAW);
-    auto quad_index   = txt::new_index_buffer(quad_cw_indices, sizeof(quad_cw_indices), txt::len(quad_cw_indices), GL_UNSIGNED_INT);
-    auto vertex_array = txt::new_vertex_array();
-    vertex_array->add(quad_vertex);
-    vertex_array->add(char_vertex);
+        m_filename   = props.filename;
+        m_pixel_size = props.size;
+        m_mode       = props.mode;
+        m_is_bitmap  = props.is_bitmap;
+        m_is_invalid = true;
 
-    txt::texture_ref_t texture{nullptr};
+        std::int32_t flags = FT_LOAD_RENDER;
+        if (m_is_bitmap) {
+            // Do nothing, we render as usual
+        } else if (m_mode == render_mode::sdf) {
+            flags |=  FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
+        } else if (m_mode == render_mode::subpixel) {
+            flags |= FT_LOAD_TARGET_(FT_RENDER_MODE_LCD);
+            FT_Library_SetLcdFilter(m_library, FT_LCD_FILTER_DEFAULT);
+            m_channels = 3;
+        }
+        m_load_flags = flags;
 
-    auto const round_up2 = [](auto const& value) {
-        return std::pow(2, std::ceil(std::log2(value) / std::log2(2)));
-    };
-    auto generate_atlas = [&] {
-        auto const cols       = static_cast<std::uint32_t>(std::ceil(std::sqrt(chars_map.size())));
-        auto const max_sizep2 = static_cast<std::uint32_t>(round_up2(max_size));
-        auto const size       = static_cast<std::uint32_t>(round_up2(cols * max_sizep2));
-        auto atlas = txt::new_image(size, size, 3);
-        if (is_regen_atlas) ch_uv = {0, 0};
-
-        for (auto& [code, font] : chars_map) {
-            auto const& img = font.buffer;
-
-            for (std::size_t i = 0; i < img->height(); ++i) {
-                for (std::size_t j = 0; j < img->width(); ++j) {
-                    auto const pixel = img->pixel(j, i);
-                    atlas->set_pixel(std::size_t(ch_uv.x) + j, std::size_t(ch_uv.y) + i, pixel);
-                }
-            }
-            // Update character map uv coordinate
-            font.uv = {
-                ch_uv.x,
-                // ch_uv.y
-                std::int32_t(size) - ch_uv.y - std::int32_t(img->height()) // We need to flip this because OpenGL texture is upside down
-            };
-
-            // std::string txt = utf8::utf32to8(std::u32string{code});
-            // fmt::print("'{}': {}x{} {}x{}\n", txt, ch_uv.x, ch_uv.y, img->width(), img->height());
-
-            ch_uv.x += max_sizep2;
-            if (ch_uv.x >= std::int32_t(size)) {
-                ch_uv.x = 0;
-                ch_uv.y += max_sizep2;
-            }
+        if (!std::filesystem::exists(m_filename)) {
+            throw std::runtime_error(fmt::format("Font file path '{}' does not exist.", m_filename));
         }
 
-        atlas->fliph();
-        atlas->write_png("test.png");
+        auto const ff_ec = FT_New_Face(m_library, m_filename.c_str(), 0, &m_face);
+        if (ff_ec == FT_Err_Unknown_File_Format)
+            throw std::runtime_error(fmt::format("Font file path '{}' have an unknown file format.", m_filename));
+        else if(ff_ec)
+            throw std::runtime_error("Error loading font file.");
 
-        is_regen_atlas = false;
-        // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        texture = txt::new_texture(atlas->data(), std::uint32_t(atlas->width()), std::uint32_t(atlas->height()), std::uint32_t(atlas->channels()), GL_RGB, GL_RGB, GL_UNSIGNED_BYTE);
-        texture->bind();
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        // glGenerateMipmap(GL_TEXTURE_2D);
-        texture->unbind();
-    };
-    generate_atlas();
+        FT_Set_Pixel_Sizes(m_face, 0, m_pixel_size);
+        // Load inital characters
+        for (std::uint32_t code = 0; code < 128; ++code)
+            load_typeface(code);
 
-    std::size_t text_size = 0;
-    std::vector<gpu_character> gpu_chars{};
-    auto begin_text = [&] {
-        text_size = 0;
-    };
-    auto push_char = [&] (character const& ch, glm::vec2 position) {
-        auto const xpos = position.x + float(ch.bearing.x);
-        auto const ypos = position.y - float(ch.size.y - ch.bearing.y);
-        auto const w = float(ch.size.x);
-        auto const h = float(ch.size.y);
-        auto const u = float(ch.uv.x);
-        auto const v = float(ch.uv.y);
+        resize_cache();
+        reload_cache();
 
-        gpu_character gpu_ch{
+        [[maybe_unused]]static constexpr float quad_vertices[] = {
+        //     x,     y,     z,       u,    v,
+            0.0f,  0.0f,  0.0f,    0.0f, 0.0f,
+            0.0f,  1.0f,  0.0f,    0.0f, 1.0f,
+            1.0f,  1.0f,  0.0f,    1.0f, 1.0f,
+            1.0f,  0.0f,  0.0f,    1.0f, 0.0f,
+        };
+        [[maybe_unused]]static constexpr std::uint32_t quad_cw_indices[] = {
+            0, 1, 2,
+            0, 2, 3
+        };
+
+        auto quad_vertex = new_vertex_buffer(quad_vertices, sizeof(quad_vertices), {
+            {3, "a_position"},
+            {2, "a_uv"}
+        });
+        m_text_vertex = new_vertex_buffer(nullptr, sizeof(gpu_tf), {
+            {2, "a_size",      2, 1},
+            {2, "a_offset",    3, 1},
+            {2, "a_uv_offset", 4, 1},
+        }, GL_DYNAMIC_DRAW);
+        m_index_buffer = new_index_buffer(quad_cw_indices, sizeof(quad_cw_indices), len(quad_cw_indices), GL_UNSIGNED_INT);
+        m_vertex_array = new_vertex_array();
+        m_vertex_array->add(quad_vertex);
+        m_vertex_array->add(m_text_vertex);
+    }
+    ~text_renderer() {
+        FT_Bitmap_Done(m_library, &m_bitmap);
+        FT_Done_FreeType(m_library);
+    }
+
+    auto find(std::uint32_t code) -> typeface {
+        auto it = m_charset.find(code);
+        if (it == std::end(m_charset)) {
+            return {};
+        }
+        return it->second;
+    }
+
+    auto pixel_size() const -> std::uint32_t { return m_pixel_size; }
+    auto texture() const -> texture_ref_t {
+        return m_texture;
+    }
+
+    auto begin() -> void {
+        m_size = 0;
+    }
+    auto render(std::string const& txt, glm::vec2 position = {}) -> void {
+        m_codes.resize(0);
+        utf8::utf8to32(std::begin(txt), std::end(txt), std::back_inserter(m_codes));
+        for (auto const& code : m_codes) {
+            auto const& tf = find(code);
+            push(tf, position);
+            position.x += float(tf.advance_x >> 6);
+        }
+    }
+    auto end() -> void {
+        if (m_size == 0) return;
+        m_texture->bind();
+
+        m_text_vertex->resize(m_size * sizeof(gpu_tf));
+        m_text_vertex->sub_data(m_gpu_cache.data(), m_size * sizeof(gpu_tf));
+        m_vertex_array->bind();
+        m_index_buffer->bind();
+        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_index_buffer->size()), GLenum(m_index_buffer->type()), nullptr, GLsizei(m_size));
+    }
+
+private:
+    auto push(typeface const& tf, glm::vec2 const& position = {}) -> void {
+        auto const xpos = position.x + float(tf.bearing.x);
+        auto const ypos = position.y - (float(tf.bitmap->height()) - float(tf.bearing.y));
+        auto const w = float(tf.bitmap->width());
+        auto const h = float(tf.bitmap->height());
+        auto const u = float(tf.uv.x);
+        auto const v = float(tf.uv.y);
+
+        gpu_tf ch{
             {w, h},
             {xpos, ypos},
             {u, v}
         };
-        if (text_size < gpu_chars.size())
-            gpu_chars[text_size] = gpu_ch;
-        else
-            gpu_chars.push_back(gpu_ch);
-        ++text_size;
 
-    };
-    auto push_code = [&] (std::uint32_t code, glm::vec2 position = {0.0f, 0.0f}) {
-        auto it = chars_map.find(code);
-        if (it == std::end(chars_map)) {
-            load_font(font_face, code);
-            it = chars_map.find(code);
-            if (it != std::end(chars_map)) {
-                is_regen_atlas = true;
-                generate_atlas();
-            } else {
-                return;
-            }
+        if (m_size < m_gpu_cache.size()) {
+            m_gpu_cache[m_size] = std::move(ch);
         } else {
-            auto const& ch = it->second;
-            push_char(ch, position);
+            m_gpu_cache.push_back(std::move(ch));
         }
-    };
-    auto render_text = [&](std::string const& text, glm::vec2 position = {0.0f, 0.0f}) {
-        std::u32string u32txt;
-        utf8::utf8to32(std::begin(text), std::end(text), std::back_inserter(u32txt));
-        glm::vec2 pos{position};
-        glm::vec2 end_pos{position};
+        ++m_size;
+    }
 
-        // std::int64_t previous_advance = 0;
-        std::int64_t previous_height = 0;
+private:
+    auto load_typeface(std::uint32_t code) -> void {
+        auto const index = FT_Get_Char_Index(m_face, code);
+        if (index == 0) return;
+        if (FT_Load_Glyph(m_face, index, m_load_flags))
+            return;
 
-        for (auto const& code : u32txt) {
-            if (code == '\n') {
-                pos.x = 0.0f;
-                pos.y -= float(previous_height >> 6);
-                continue;
-            }
+        auto const width     = m_face->glyph->bitmap.width / m_channels;
+        auto const height    = m_face->glyph->bitmap.rows;
+        auto const left      = m_face->glyph->bitmap_left;
+        auto const top       = m_face->glyph->bitmap_top;
+        auto const advance_x = m_face->glyph->advance.x;
+        auto const advance_y = m_face->size->metrics.height;
 
-            auto it = chars_map.find(code);
-            if (it == std::end(chars_map)) {
-                load_font(font_face, code);
-                it = chars_map.find(code);
-                if (it != std::end(chars_map)) {
-                    is_regen_atlas = true;
-                    generate_atlas();
-                } else {
-                    continue;
-                }
-            }
+        // Convert to one byte alignment
+        FT_Bitmap_Convert(m_library, &m_face->glyph->bitmap, &m_bitmap, 1);
+        auto img = new_image(m_bitmap.buffer, width, height, m_channels);
 
-            auto const& ch = it->second;
-            // previous_advance = ch.advance;
-            previous_height = ch.height;
+        typeface tp{
+            {left,  top},
+            advance_x, advance_y,
+            img,
+            {0, 0}
+        };
+        m_charset[code] = std::move(tp);
 
-            push_char(ch, pos);
-            pos.x += float(ch.advance >> 6);
+        auto const width_or_height = std::max(width, height);
+        m_max_size = std::max(m_max_size, width_or_height);
+    }
+
+    auto reload_all() -> void {
+        for (auto const& [code, tp] : m_charset)
+            load_typeface(code);
+
+        resize_cache();
+        reload_cache();
+    }
+
+    auto reload_cache() -> void {
+        for (auto& [code, font] : m_charset)
+            insert_atlas(font);
+
+        std::uint32_t internal_format = GL_R8;
+        std::uint32_t format = GL_RED;
+        if (m_channels == 3) {
+            internal_format = GL_RGB8;
+            format = GL_RGB;
         }
 
-        end_pos.y = pos.y;
-        end_pos.x = pos.x;
-        return end_pos;
-    };
-    auto end_text = [&] {
-        if (text_size == 0) return;
-        char_vertex->resize(text_size * sizeof(gpu_character));
-        char_vertex->sub_data(gpu_chars.data(), text_size * sizeof(gpu_character));
-        vertex_array->bind();
-        quad_index->bind();
-        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(quad_index->size()), GLenum(quad_index->type()), nullptr, GLsizei(text_size));
-    };
+        m_texture = new_texture(m_atlas->data(), std::uint32_t(m_atlas->width()), std::uint32_t(m_atlas->height()), std::uint32_t(m_atlas->channels()), internal_format, format, GL_UNSIGNED_BYTE);
+        m_texture->bind();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        if (m_mode == render_mode::raster) {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        } else {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+        m_texture->unbind();
+    }
+
+    auto resize_cache() -> void {
+        constexpr auto round_up2 = [](auto const& value) {
+            return std::pow(2, std::ceil(std::log2(value) / std::log2(2)));
+        };
+        auto const cols = static_cast<std::uint32_t>(std::ceil(std::sqrt(m_charset.size())));
+        auto const msp2 = static_cast<std::uint32_t>(round_up2(m_max_size));  // Glyph max size round to power of 2
+        m_image_size = static_cast<std::uint32_t>(round_up2(cols * msp2));
+        if (m_atlas == nullptr || m_image_size != m_atlas->width()) {
+            m_atlas = txt::new_image(m_image_size, m_image_size, m_channels);
+            m_uv = {0, std::int32_t(m_image_size)};
+        }
+    }
+
+    auto insert_atlas(typeface& tf) -> void {
+        auto const& bm = tf.bitmap;
+        for (std::size_t i = 0; i < bm->height(); ++i) {
+            for (std::size_t j = 0; j < bm->width(); ++j) {
+                auto const pixel = bm->pixel(j, i);
+                m_atlas->set_pixel(std::size_t(m_uv.x) + j, std::size_t(m_uv.y) - i, pixel);
+            }
+        }
+        tf.uv = {
+            m_uv.x,
+            m_uv.y - std::int32_t(bm->height() - 1)
+        };
+
+        m_uv.x += m_max_size;
+        if (m_uv.x >= std::int32_t(m_atlas->width())) {
+            m_uv.x = 0;
+            m_uv.y -= m_max_size;
+        }
+    }
+
+private:
+    FT_Library m_library{};
+    FT_Bitmap  m_bitmap{};
+
+    std::size_t m_size{0};
+    std::vector<gpu_tf> m_gpu_cache{};
+    index_buffer_ref_t  m_index_buffer{nullptr};
+    vertex_buffer_ref_t m_text_vertex{nullptr};
+    vertex_array_ref_t  m_vertex_array{nullptr};
+
+    std::string    m_filename{};
+    std::uint32_t  m_pixel_size{};
+    charset_t      m_charset{};         // Loaded charset
+    FT_Face        m_face{nullptr};     // FreeType font face
+    image_ref_t    m_atlas{nullptr};    // Image cache
+    std::size_t    m_image_size{0};
+    texture_ref_t  m_texture{nullptr};  // Texture atlas
+    glm::ivec2     m_uv{0, 0};          // Current UV coordinate
+    std::uint32_t  m_max_size{0};       // Maximum possible size in bitmap
+    std::int32_t   m_load_flags{0};
+    render_mode    m_mode{render_mode::normal};
+    bool           m_is_bitmap{false};
+    bool           m_is_invalid{true};
+    std::uint32_t  m_channels{1};
+    std::u32string m_codes{};
+};
+}
+
+auto run() -> void {
+    auto window = txt::new_window({
+        "Hello, Text!",
+        738, 480,
+    });
+
+    txt::text_renderer text{{
+        "deps/fonts/Cozette/CozetteVector.ttf",
+        13, txt::render_mode::raster,
+        true
+    }};
+    auto shader = txt::new_shader(
+        txt::read_text("shaders/text.vert"),
+        txt::read_text("shaders/text.frag")
+    );
 
     glm::vec3 camera_position{0.0f, 0.0f, 10.0f};
     glm::vec3 camera_front{0.0f, 0.0f, -1.0f};
     glm::vec3 camera_up{0.0f, 1.0f, 0.0f};
-    auto is_on = true;
-    auto current_time  = window->time();
-    auto previous_time = current_time;
-    auto blink_time = 0.0;
-    static float font_size_offset = 0.0f;
 
-    glfwSetCharCallback(window->native(), [](GLFWwindow*, unsigned int codepoint) {
-        text_buffer.push_back(codepoint);
-    });
-    glfwSetKeyCallback(window->native(), [](GLFWwindow*, int key, int, int action, [[maybe_unused]]int mods) {
-        if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
-            text_buffer.push_back(U'\n');
-        }
-        if (key == GLFW_KEY_BACKSPACE && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-            if (text_buffer.size() > 0)
-                text_buffer.erase(text_buffer.size() - 1, 1);
-        }
-        if (key == GLFW_KEY_EQUAL && (action == GLFW_PRESS) && mods & GLFW_MOD_CONTROL) {
-            font_size_offset += 1.0f;
-        }
-        if (key == GLFW_KEY_MINUS && (action == GLFW_PRESS) && mods & GLFW_MOD_CONTROL) {
-            font_size_offset -= 1.0f;
-        }
-        if (key == GLFW_KEY_0 && (action == GLFW_PRESS) && mods & GLFW_MOD_CONTROL) {
-            font_size_offset = 0.0f;
-        }
-    });
-
-    auto is_running = true;
-    while(is_running) {
-        is_running = !glfwWindowShouldClose(window->native());
-        glfwGetFramebufferSize(window->native(), &width, &height);
-
-        auto const frame_time = current_time - previous_time;
-        previous_time = current_time;
-        current_time  = window->time();
-        blink_time += frame_time;
-        if (blink_time > 0.333) {
-            blink_time = 0.0;
-            is_on = !is_on;
-        }
-
+    while(!window->should_close()) {
         glm::mat4 model{1.0f};
         glm::mat4 view = glm::lookAt(camera_position, camera_position + camera_front, camera_up);
-        glm::mat4 projection = glm::ortho(0.0f, float(width), 0.0f, float(height), 0.1f, 100.0f);
+        glm::mat4 projection = glm::ortho(0.0f, float(window->width()), 0.0f, float(window->height()), 0.1f, 100.0f);
+        model = glm::translate(model, glm::vec3{0.0f, float(window->height()) - float(text.pixel_size()) * 2.0f, 0.0f});
+        model = glm::scale(model, glm::vec3{2.0f});
 
-        // Clear screen
-        glViewport(0, 0, width, height);
-        glEnable(GL_CULL_FACE);
-        glFrontFace(GL_CW);
+        glViewport(0, 0, window->buffer_width(), window->buffer_height());
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glBlendFunc(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR);
-
-        glEnable(GL_DEPTH);
-        glDepthFunc(GL_LESS);
-        glClearColor(20.0f / 255.0f, 24.0f / 255.0f, 36.0f / 255.0f, 1.0f);
+        txt::clear_color(0x141414);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        model = glm::translate(model, glm::vec3{0.0f, float(height) - (float(FONT_SIZE) + font_size_offset), 0.0f});
-        // model = glm::scale(model, glm::vec3{5.0f});
-        // model = glm::translate(model, glm::vec3{100.0f, 100.0f, 0.0f});
-        // model = glm::rotate(model, glm::radians(180.0f), glm::vec3{1.0f, 0.0f, 0.0f});
-        model = glm::scale(model, glm::vec3{(float(FONT_SIZE) + font_size_offset) / float(FONT_SIZE)});
-        texture->bind();
         shader->bind();
-        shader->set_num("u_texture", 0);
-        shader->set_vec2("u_size", {float(texture->width()), float(texture->height())});
-        // shader->set_vec3("u_color", {0.25f, 0.75f, 1.0f});
-        // shader->set_vec4("u_color", glm::vec4{1.0f});
         shader->set_vec4("u_color", glm::vec4{203.0f / 255.0f, 206.0f / 255.0f, 188.0f / 255.0f, 1.0f});
         shader->set_mat4("u_model", model);
         shader->set_mat4("u_view", view);
         shader->set_mat4("u_projection", projection);
+        shader->set_vec2("u_size", {float(text.texture()->width()), float(text.texture()->height())});
+        shader->set_num("u_texture", 0);
 
-        begin_text();
-        std::string txt{};
-        utf8::utf32to8(std::begin(text_buffer), std::end(text_buffer), std::back_inserter(txt));
-        auto const end_pos = render_text(txt);
-        end_text();
-
-        if (is_on) {
-            shader->set_vec4("u_color", glm::vec4(0.95f));
-        } else {
-            shader->set_vec4("u_color", glm::vec4{0.0f});
-        }
-        begin_text();
-        push_code(U'█', end_pos);
-        end_text();
-
-        model = glm::mat4{1.0f};
-        shader->set_mat4("u_model", model);
-        shader->set_vec4("u_color", glm::vec4{1.0f});
-        begin_text();
-        render_text(fmt::format("font size: {}", FONT_SIZE + std::int32_t(font_size_offset)));
-        end_text();
+        text.begin();
+        text.render("Hello, World!");
+        text.end();
 
         window->swap();
         window->poll();
     }
+}
 
-    // Clean up FreeType resources
-    FT_Bitmap_Done(font_library, &target_bitmap);
-    FT_Done_Face(font_face);
-    FT_Done_FreeType(font_library);
+auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
+    try {
+        run();
+    } catch (std::exception const& e) {
+        fmt::print(stderr, "{}\n", e.what());
+        return 1;
+    }
     return 0;
 }
