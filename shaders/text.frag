@@ -1,7 +1,13 @@
 #version 410 core
-layout(location = 0) out vec4 color;
-// layout(location = 0, index = 0) out vec4 color;
-// layout(location = 0, index = 1) out vec4 color_mask;
+
+layout(location = 0, index = 0) out vec4 color;
+layout(location = 0, index = 1) out vec4 color_mask;
+
+#ifndef RENDER_MODE
+#define RENDER_MODE 0
+#endif
+#define SUBPIXEL 1
+#define SDF 2
 
 in vec2 _uv;
 in vec2 _size;
@@ -17,13 +23,17 @@ void main() {
         _uv.y * (_size.y / u_size.y) + (_offset.y / u_size.y)
     );
 
+#if RENDER_MODE == SUBPIXEL
+    vec4 s = texture(u_texture, uv);  // Texture sample
+    color = u_color;
+    color_mask = u_color.a * s;
+#elif RENDER_MODE == SDF
     float d = texture(u_texture, uv).r;
-    // float aaf = fwidth(d);
-    // float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
+    float aaf = fwidth(d);
+    float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
+    color = vec4(u_color.rgb, a);
+#else
+    float d = texture(u_texture, uv).r;
     color = vec4(u_color.rgb, d);
-    // color = vec4(1.0, 0.0, 1.0, 1.0);
-
-    // vec4 s = texture(u_texture, uv);  // Texture sample
-    // color = u_color;
-    // color_mask = u_color.a * s;
+#endif
 }

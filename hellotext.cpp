@@ -33,6 +33,14 @@ constexpr auto len(T (&)[N]) -> std::size_t {
     return N;
 }
 
+constexpr decltype(auto) curry(auto f, auto... ps){
+    if constexpr (requires { std::invoke(f, ps...); }) {
+        return std::invoke(f, ps...);
+    } else {
+        return [f, ps...](auto... qs) -> decltype(auto) { return curry(f, ps..., qs...); };
+    }
+}
+
 [[maybe_unused]]static auto setup_opengl() -> void {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
@@ -554,15 +562,13 @@ enum class render_mode : std::uint32_t {
     normal,
     sdf,
     subpixel,
-    raster
+    raster,
 };
 
 struct font_props {
     std::string   filename;
     std::uint32_t size;
     render_mode   mode{render_mode::normal};
-    bool          is_bitmap{false};
-    shader_ref_t  shader{nullptr};
 };
 
 class text_renderer {
@@ -582,11 +588,10 @@ public:
         m_filename   = props.filename;
         m_pixel_size = props.size;
         m_mode       = props.mode;
-        m_is_bitmap  = props.is_bitmap;
         m_is_invalid = true;
 
         std::int32_t flags = FT_LOAD_RENDER;
-        if (m_is_bitmap) {
+        if (m_mode == render_mode::raster) {
             // Do nothing, we render as usual
         } else if (m_mode == render_mode::sdf) {
             flags |=  FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
@@ -640,6 +645,17 @@ public:
         m_vertex_array = new_vertex_array();
         m_vertex_array->add(quad_vertex);
         m_vertex_array->add(m_text_vertex);
+
+        auto vs = read_text("shaders/text.vert");
+        auto fs = read_text("shaders/text.frag");
+        if (m_mode == render_mode::sdf) {
+            auto const line = fs.find('\n');
+            fs.insert(line + 1, "#define RENDER_MODE SDF\n");
+        } else if (m_mode == render_mode::subpixel) {
+            auto const line = fs.find('\n');
+            fs.insert(line + 1, "#define RENDER_MODE SUBPIXEL\n");
+        }
+        m_shader = new_shader(vs, fs);
     }
     ~text_renderer() {
         FT_Bitmap_Done(m_library, &m_bitmap);
@@ -658,9 +674,16 @@ public:
     auto texture() const -> texture_ref_t {
         return m_texture;
     }
+    auto shader() const -> shader_ref_t const& { return m_shader; }
 
     auto begin() -> void {
         m_size = 0;
+        glEnable(GL_BLEND);
+        if (m_mode == render_mode::subpixel) {
+            glBlendFunc(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR);
+        } else {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
     }
     auto render(std::string const& txt, glm::vec2 position = {}) -> void {
         m_codes.resize(0);
@@ -673,6 +696,9 @@ public:
     }
     auto end() -> void {
         if (m_size == 0) return;
+        m_shader->bind();
+        m_shader->set_vec2("u_size", {float(m_texture->width()), float(m_texture->height())});
+        m_shader->set_num("u_texture", 0);
         m_texture->bind();
 
         m_text_vertex->resize(m_size * sizeof(gpu_tf));
@@ -680,6 +706,7 @@ public:
         m_vertex_array->bind();
         m_index_buffer->bind();
         glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_index_buffer->size()), GLenum(m_index_buffer->type()), nullptr, GLsizei(m_size));
+        m_shader->unbind();
     }
 
 private:
@@ -822,10 +849,10 @@ private:
     std::uint32_t  m_max_size{0};       // Maximum possible size in bitmap
     std::int32_t   m_load_flags{0};
     render_mode    m_mode{render_mode::normal};
-    bool           m_is_bitmap{false};
     bool           m_is_invalid{true};
     std::uint32_t  m_channels{1};
     std::u32string m_codes{};
+    shader_ref_t   m_shader{nullptr};
 };
 }
 
@@ -836,39 +863,37 @@ auto run() -> void {
     });
 
     txt::text_renderer text{{
-        "deps/fonts/Cozette/CozetteVector.ttf",
-        13, txt::render_mode::raster,
-        true
+        "deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
+        32, txt::render_mode::subpixel
     }};
-    auto shader = txt::new_shader(
-        txt::read_text("shaders/text.vert"),
-        txt::read_text("shaders/text.frag")
-    );
+    // txt::text_renderer text{{
+    //     "deps/fonts/Cozette/CozetteVector.ttf",
+    //     13, txt::render_mode::raster
+    // }};
 
     glm::vec3 camera_position{0.0f, 0.0f, 10.0f};
     glm::vec3 camera_front{0.0f, 0.0f, -1.0f};
     glm::vec3 camera_up{0.0f, 1.0f, 0.0f};
 
+    float scale = 1.0f;
+
     while(!window->should_close()) {
         glm::mat4 model{1.0f};
         glm::mat4 view = glm::lookAt(camera_position, camera_position + camera_front, camera_up);
         glm::mat4 projection = glm::ortho(0.0f, float(window->width()), 0.0f, float(window->height()), 0.1f, 100.0f);
-        model = glm::translate(model, glm::vec3{0.0f, float(window->height()) - float(text.pixel_size()) * 2.0f, 0.0f});
-        model = glm::scale(model, glm::vec3{2.0f});
+        model = glm::translate(model, glm::vec3{0.0f, float(window->height()) - float(text.pixel_size()) * scale, 0.0f});
+        model = glm::scale(model, glm::vec3{scale});
 
         glViewport(0, 0, window->buffer_width(), window->buffer_height());
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         txt::clear_color(0x141414);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        auto const shader = text.shader();
         shader->bind();
         shader->set_vec4("u_color", glm::vec4{203.0f / 255.0f, 206.0f / 255.0f, 188.0f / 255.0f, 1.0f});
         shader->set_mat4("u_model", model);
         shader->set_mat4("u_view", view);
         shader->set_mat4("u_projection", projection);
-        shader->set_vec2("u_size", {float(text.texture()->width()), float(text.texture()->height())});
-        shader->set_num("u_texture", 0);
 
         text.begin();
         text.render("Hello, World!");
