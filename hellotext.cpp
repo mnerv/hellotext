@@ -550,11 +550,12 @@ auto new_shader(std::string const& vs_src, std::string const& fs_src) -> shader_
 }
 
 struct typeface {
-    glm::ivec2   bearing;
-    std::int64_t advance_x;
-    std::int64_t advance_y;
-    image_ref_t  bitmap{nullptr};
-    glm::ivec2   uv{0, 0};
+    std::uint32_t code;
+    glm::ivec2    bearing;
+    std::int64_t  advance_x;
+    std::int64_t  advance_y;
+    image_ref_t   bitmap{nullptr};
+    glm::ivec2    uv{0, 0};
 };
 using charset_t = std::unordered_map<std::uint32_t, typeface>;
 
@@ -688,8 +689,15 @@ public:
     auto render(std::string const& txt, glm::vec2 position = {}) -> void {
         m_codes.resize(0);
         utf8::utf8to32(std::begin(txt), std::end(txt), std::back_inserter(m_codes));
+        std::int64_t advance_y = 0;
         for (auto const& code : m_codes) {
+            if (code == '\n') {
+                position.x = 0.0f;
+                position.y -= float(advance_y >> 6);
+                continue;
+            }
             auto const& tf = find(code);
+            advance_y = tf.advance_y;
             push(tf, position);
             position.x += float(tf.advance_x >> 6);
         }
@@ -751,6 +759,7 @@ private:
         auto img = new_image(m_bitmap.buffer, width, height, m_channels);
 
         typeface tp{
+            code,
             {left,  top},
             advance_x, advance_y,
             img,
@@ -783,8 +792,6 @@ private:
 
         m_texture = new_texture(m_atlas->data(), std::uint32_t(m_atlas->width()), std::uint32_t(m_atlas->height()), std::uint32_t(m_atlas->channels()), internal_format, format, GL_UNSIGNED_BYTE);
         m_texture->bind();
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         if (m_mode == render_mode::raster) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -792,6 +799,8 @@ private:
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         }
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         m_texture->unbind();
     }
 
@@ -804,7 +813,7 @@ private:
         m_image_size = static_cast<std::uint32_t>(round_up2(cols * msp2));
         if (m_atlas == nullptr || m_image_size != m_atlas->width()) {
             m_atlas = txt::new_image(m_image_size, m_image_size, m_channels);
-            m_uv = {0, std::int32_t(m_image_size)};
+            m_uv = {0, std::int32_t(m_image_size) - 1};
         }
     }
 
@@ -822,7 +831,7 @@ private:
         };
 
         m_uv.x += m_max_size;
-        if (m_uv.x >= std::int32_t(m_atlas->width())) {
+        if (m_uv.x >= std::int32_t(m_atlas->width() - m_max_size)) {
             m_uv.x = 0;
             m_uv.y -= m_max_size;
         }
@@ -862,9 +871,13 @@ auto run() -> void {
         738, 480,
     });
 
+    // txt::text_renderer text{{
+    //     "deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
+    //     11, txt::render_mode::subpixel
+    // }};
     txt::text_renderer text{{
         "deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
-        32, txt::render_mode::subpixel
+        11, txt::render_mode::normal
     }};
     // txt::text_renderer text{{
     //     "deps/fonts/Cozette/CozetteVector.ttf",
@@ -875,14 +888,26 @@ auto run() -> void {
     glm::vec3 camera_front{0.0f, 0.0f, -1.0f};
     glm::vec3 camera_up{0.0f, 1.0f, 0.0f};
 
-    float scale = 1.0f;
+    float scale = 1.f;
+    std::string sauce = txt::read_text("./hellotext.cpp");
+
+    double current_time = 0.0;
+    double previous_time = 0.0;
+
+    float offset = 0.0f;
 
     while(!window->should_close()) {
+        current_time = window->time();
+        auto const delta_time = current_time - previous_time;
+        previous_time = current_time;
+
         glm::mat4 model{1.0f};
         glm::mat4 view = glm::lookAt(camera_position, camera_position + camera_front, camera_up);
         glm::mat4 projection = glm::ortho(0.0f, float(window->width()), 0.0f, float(window->height()), 0.1f, 100.0f);
         model = glm::translate(model, glm::vec3{0.0f, float(window->height()) - float(text.pixel_size()) * scale, 0.0f});
         model = glm::scale(model, glm::vec3{scale});
+
+        offset += float(delta_time) * 64.0f;
 
         glViewport(0, 0, window->buffer_width(), window->buffer_height());
         txt::clear_color(0x141414);
@@ -896,7 +921,8 @@ auto run() -> void {
         shader->set_mat4("u_projection", projection);
 
         text.begin();
-        text.render("Hello, World!");
+        text.render(sauce, {0.0f, offset});
+        text.render(fmt::format("{:.2f}", 1.0 / delta_time), glm::vec2(500.0f, 0.0f));
         text.end();
 
         window->swap();
