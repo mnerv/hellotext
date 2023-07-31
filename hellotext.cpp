@@ -49,21 +49,6 @@ constexpr auto hex2rgba(std::uint32_t color, float alpha = 1.0f) -> glm::vec4 {
     };
 }
 
-[[maybe_unused]]static auto setup_opengl() -> void {
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
-
-[[maybe_unused]]static auto info_opengl() -> void {
-    fmt::print("OpenGL Info:\n");
-    fmt::print("    Vendor:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VENDOR)));
-    fmt::print("    Renderer: {:s}\n", reinterpret_cast<char const*>(glGetString(GL_RENDERER)));
-    fmt::print("    Version:  {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VERSION)));
-    fmt::print("    Shader:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
-}
-
 [[maybe_unused]]static auto clear_color(std::uint32_t color, float alpha = 1.0f) -> void {
     auto const r = float((color >> 16) & 0xFF) / 255.0f;
     auto const g = float((color >>  8) & 0xFF) / 255.0f;
@@ -81,6 +66,21 @@ auto read_text(std::filesystem::path const& filename) -> std::string {
         std::istreambuf_iterator<char>(input),
         std::istreambuf_iterator<char>()
     };
+}
+
+[[maybe_unused]]static auto setup_opengl() -> void {
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+}
+
+[[maybe_unused]]static auto info_opengl() -> void {
+    fmt::print("OpenGL Info:\n");
+    fmt::print("    Vendor:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VENDOR)));
+    fmt::print("    Renderer: {:s}\n", reinterpret_cast<char const*>(glGetString(GL_RENDERER)));
+    fmt::print("    Version:  {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VERSION)));
+    fmt::print("    Shader:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
 }
 
 struct window_props {
@@ -316,63 +316,142 @@ struct attrib {
     }
 };
 
-class vertex_buffer {
+class buffer {
 public:
-    vertex_buffer(void const* data, std::size_t bytes, std::initializer_list<attrib> const& attribs, GLenum usage)
-        : m_id(0)
-        , m_bytes(bytes)
-        , m_usage(usage)
-        , m_attribs(attribs) {
-        glGenBuffers(1, &m_id);
-        glBindBuffer(GL_ARRAY_BUFFER, m_id);
-        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_bytes), data, GLenum(m_usage));
+    buffer() : m_id(nullptr), m_bytes(0), m_size(0), m_layout() {
+        auto id = new std::uint32_t;
+        glGenBuffers(1, id);
+        m_id = std::shared_ptr<std::uint32_t>(id, [](std::uint32_t* ptr) {
+            glDeleteBuffers(1, ptr);
+            delete ptr;
+        });
+    }
+    buffer(void const* data, std::size_t bytes, std::size_t size, std::uint32_t usage, std::initializer_list<attrib> const& layout)
+        : m_id(nullptr), m_bytes(bytes), m_size(size), m_layout(layout) {
+        auto id = new std::uint32_t;
+        glGenBuffers(1, id);
+        m_id = std::shared_ptr<std::uint32_t>(id, [](std::uint32_t* ptr) {
+            glDeleteBuffers(1, ptr);
+            delete ptr;
+        });
+        glBindBuffer(GL_ARRAY_BUFFER, *m_id);
+        glBufferData(GL_ARRAY_BUFFER, bytes, data, usage);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         compute_offset();
     }
-    ~vertex_buffer() {
-        glDeleteBuffers(1, &m_id);
-    }
+    ~buffer() = default;
 
-    auto layout() const -> std::vector<attrib> const& { return m_attribs; }
+    auto set(void const* data, std::size_t bytes, std::size_t size, std::uint32_t usage, std::initializer_list<attrib> const& layout) {
+        m_bytes = bytes;
+        m_size = size;
+        m_layout = layout;
+        glBindBuffer(GL_ARRAY_BUFFER, *m_id);
+        glBufferData(GL_ARRAY_BUFFER, bytes, data, usage);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        compute_offset();
+    }
+    auto resize(std::size_t bytes) {
+        m_bytes = bytes;
+        glBindBuffer(GL_ARRAY_BUFFER, *m_id);
+        glBufferData(GL_ARRAY_BUFFER, bytes, nullptr, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+    auto sub(void const* data, std::size_t bytes, std::size_t offset = 0) {
+        assert(offset + bytes <= m_bytes);
+        glBindBuffer(GL_ARRAY_BUFFER, *m_id);
+        glBufferSubData(GL_ARRAY_BUFFER, offset, bytes, data);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
     auto bind() const -> void {
-        glBindBuffer(GL_ARRAY_BUFFER, m_id);
+        glBindBuffer(GL_ARRAY_BUFFER, *m_id);
     }
     auto unbind() const -> void {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
-    auto sub_data(void const* data, std::size_t bytes, std::size_t offset = 0) -> void {
-        assert(data != nullptr || (bytes + offset) > m_bytes);
-        glBindBuffer(GL_ARRAY_BUFFER, m_id);
-        glBufferSubData(GL_ARRAY_BUFFER, offset, bytes, data);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    auto bytes() const -> std::size_t {
+        return m_bytes;
     }
-    auto resize(std::size_t bytes) -> void {
-        if (m_bytes == bytes || bytes == 0) return;
-        m_bytes = bytes;
-        glBindBuffer(GL_ARRAY_BUFFER, m_id);
-        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_bytes), nullptr, GLenum(m_usage));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    auto size() const -> std::size_t {
+        return m_size;
+    }
+    auto layout() const -> std::vector<attrib> const& {
+        return m_layout;
     }
 
 private:
     auto compute_offset() -> void {
         std::size_t offset = 0;
-        for (auto& a : m_attribs) {
+        for (auto& a : m_layout) {
             a.offset = offset;
             offset += a.count * attrib::type_size(a.type);
         }
     }
 
 private:
+    std::shared_ptr<std::uint32_t> m_id;
+    std::size_t m_bytes;
+    std::size_t m_size;
+    std::vector<attrib> m_layout;
+};
+
+class vertex_buffer {
+public:
+    vertex_buffer(buffer const& buffer) : m_id(0) {
+        glGenVertexArrays(1, &m_id);
+        add(buffer);
+    }
+    ~vertex_buffer() {
+        glDeleteVertexArrays(1, &m_id);
+    }
+
+    auto add(buffer const& buffer) -> void {
+        glBindVertexArray(m_id);
+        buffer.bind();
+        auto const& layout = buffer.layout();
+        auto const stride = compute_stride(layout);
+        std::for_each(std::begin(layout), std::end(layout), [&](attrib const& a) {
+            if (a.count <= 4) {
+                glEnableVertexAttribArray(GLuint(m_index));
+                glVertexAttribPointer(GLuint(m_index), GLint(a.count), GLenum(a.type), GLboolean(a.normalised), GLsizei(stride), (void const*)a.offset);
+                glVertexAttribDivisor(GLuint(m_index++), GLuint(a.divisor));
+            } else if (a.count == 4 * 4) {
+                for (std::size_t i = 0; i < 4; ++i) {
+                    glEnableVertexAttribArray(GLuint(m_index));
+                    glVertexAttribPointer(GLuint(m_index), 4, GLenum(a.type), GLboolean(a.normalised), GLsizei(stride), (void const*)(a.offset + i * sizeof(glm::vec4)));
+                    glVertexAttribDivisor(GLuint(m_index++), GLuint(a.divisor));
+                }
+            }
+        });
+        m_buffers.push_back(buffer);
+        glBindVertexArray(0);
+    }
+    auto bind() const -> void {
+        glBindVertexArray(m_id);
+        for (auto const& buffer : m_buffers)
+            buffer.bind();
+    }
+    auto unbind() const -> void {
+        glBindVertexArray(0);
+    }
+
+private:
+    auto compute_stride(std::vector<attrib> const& attribs) const -> std::size_t {
+        return std::accumulate(std::begin(attribs), std::end(attribs), std::size_t(0),
+        [](auto const& acc, auto const& b) {
+            auto const size = b.count * attrib::type_size(GLenum(b.type));
+            return acc + size;
+        });
+    }
+
+private:
     std::uint32_t m_id;
-    std::size_t   m_bytes;
-    std::uint32_t m_usage;
-    std::vector<attrib> m_attribs;
+    std::size_t   m_index{0};
+    std::vector<buffer> m_buffers{};
 };
 
 using vertex_buffer_ref_t = std::shared_ptr<vertex_buffer>;
-auto new_vertex_buffer(void const* data, std::size_t bytes, std::initializer_list<attrib> const& attribs, GLenum usage = GL_STATIC_DRAW) -> vertex_buffer_ref_t {
-    return std::make_shared<vertex_buffer>(data, bytes, attribs, usage);
+auto new_vertex_buffer(buffer const& buffer) -> vertex_buffer_ref_t {
+    return std::make_shared<vertex_buffer>(buffer);
 }
 
 class index_buffer {
@@ -426,66 +505,6 @@ private:
 using index_buffer_ref_t = std::shared_ptr<index_buffer>;
 auto new_index_buffer(void const* data, std::size_t bytes, std::size_t size, GLenum type = GL_UNSIGNED_INT, GLenum usage = GL_STATIC_DRAW) -> index_buffer_ref_t {
     return std::make_shared<index_buffer>(data, bytes, size, type, usage);
-}
-
-class vertex_array {
-public:
-    vertex_array()
-        : m_id(0) {
-        glGenVertexArrays(1, &m_id);
-    }
-    ~vertex_array() {
-        glDeleteVertexArrays(1, &m_id);
-    }
-
-    auto add(vertex_buffer_ref_t buffer) -> void {
-        glBindVertexArray(m_id);
-        buffer->bind();
-        auto const& layout = buffer->layout();
-        auto const stride = compute_stride(layout);
-        std::for_each(std::begin(layout), std::end(layout), [&](attrib const& a) {
-            if (a.count <= 4) {
-                glEnableVertexAttribArray(GLuint(m_index));
-                glVertexAttribPointer(GLuint(m_index), GLint(a.count), GLenum(a.type), GLboolean(a.normalised), GLsizei(stride), (void const*)a.offset);
-                glVertexAttribDivisor(GLuint(m_index++), GLuint(a.divisor));
-            } else if (a.count == 4 * 4) {
-                for (std::size_t i = 0; i < 4; ++i) {
-                    glEnableVertexAttribArray(GLuint(m_index));
-                    glVertexAttribPointer(GLuint(m_index), 4, GLenum(a.type), GLboolean(a.normalised), GLsizei(stride), (void const*)(a.offset + i * sizeof(glm::vec4)));
-                    glVertexAttribDivisor(GLuint(m_index++), GLuint(a.divisor));
-                }
-            }
-        });
-        m_buffers.push_back(std::move(buffer));
-        glBindVertexArray(0);
-    }
-    auto bind() const -> void {
-        glBindVertexArray(m_id);
-        for (auto const& buffer : m_buffers)
-            buffer->bind();
-    }
-    auto unbind() const -> void {
-        glBindVertexArray(0);
-    }
-
-private:
-    auto compute_stride(std::vector<attrib> const& attribs) const -> std::size_t {
-        return std::accumulate(std::begin(attribs), std::end(attribs), std::size_t(0),
-        [](auto const& acc, auto const& b) {
-            auto const size = b.count * attrib::type_size(GLenum(b.type));
-            return acc + size;
-        });
-    }
-
-private:
-    std::uint32_t m_id;
-    std::size_t   m_index{0};
-    std::vector<vertex_buffer_ref_t> m_buffers{};
-};
-
-using vertex_array_ref_t = std::shared_ptr<vertex_array>;
-auto new_vertex_array() -> vertex_array_ref_t {
-    return std::make_shared<vertex_array>();
 }
 
 class shader {
@@ -807,7 +826,7 @@ public:
 
 public:
     text_renderer(font_manager_ref_t const& font_manager, std::string const& vertex_shader_path, std::string const& fragment_shader_path)
-        : m_manager(font_manager), m_size(0), m_va(new_vertex_array()) {
+        : m_manager(font_manager), m_size(0), m_vb(nullptr) {
         static constexpr float quad_vertices[] = {
         //     x,     y,     z,       u,    v,
             0.0f,  0.0f,  0.0f,    0.0f, 0.0f,
@@ -819,18 +838,18 @@ public:
             0, 1, 2,
             0, 2, 3
         };
-        m_va->add(new_vertex_buffer(quad_vertices, sizeof(quad_vertices), {
+        m_vb = new_vertex_buffer({quad_vertices, sizeof(quad_vertices), len(quad_vertices), GL_STATIC_DRAW, {
             {.count = 3, .name = "a_position"},
             {.count = 2, .name = "a_uv"},
-        }));
+        }});
         m_ib = new_index_buffer(quad_cw_indices, sizeof(quad_cw_indices), len(quad_cw_indices));
-        m_tb = new_vertex_buffer(nullptr, 0, {
+        m_tb = buffer(nullptr, 0, 0, GL_DYNAMIC_DRAW, {
             {.count = 2,     .name = "a_size"  , .divisor = 1},
             {.count = 2,     .name = "a_offset", .divisor = 1},
             {.count = 4,     .name = "a_color" , .divisor = 1},
             {.count = 4 * 4, .name = "a_model" , .divisor = 1},
-        }, GL_DYNAMIC_DRAW);
-        m_va->add(m_tb);
+        });
+        m_vb->add(m_tb);
 
         auto vs = read_text(vertex_shader_path);
         auto fs = read_text(fragment_shader_path);
@@ -914,9 +933,9 @@ public:
         m_manager->texture()->bind();
         m_shader->set_num("u_texture", 0);
 
-        m_tb->resize(m_size * sizeof(gpu));
-        m_tb->sub_data(m_cache.data(), m_size * sizeof(gpu));
-        m_va->bind();
+        m_tb.resize(m_size * sizeof(gpu));
+        m_tb.sub(m_cache.data(), m_size * sizeof(gpu));
+        m_vb->bind();
         m_ib->bind();
         glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_ib->size()), GLenum(m_ib->type()), nullptr, GLsizei(m_size));
         m_shader->unbind();
@@ -951,9 +970,9 @@ private:
     font_manager_ref_t m_manager;
     std::size_t        m_size;
 
-    vertex_array_ref_t  m_va{};
+    vertex_buffer_ref_t m_vb{};
     index_buffer_ref_t  m_ib{};
-    vertex_buffer_ref_t m_tb{};
+    buffer              m_tb{};
     shader_ref_t        m_shader{};
 
     std::vector<gpu> m_cache{};
