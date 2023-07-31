@@ -1,6 +1,4 @@
 #include <cstdint>
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/ext/vector_float3.hpp>
 #include <iostream>
 #include <string>
 #include <unordered_map>
