@@ -111,18 +111,18 @@ public:
 
         // Setup event
         glfwSetWindowUserPointer(m_native, this);
-        glfwSetWindowSizeCallback(m_native, [](GLFWwindow* window, int width, int height) {
-            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+        glfwSetWindowSizeCallback(m_native, [](GLFWwindow* window_ptr, int width, int height) {
+            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window_ptr));
             ptr->m_width  = width;
             ptr->m_height = height;
         });
-        glfwSetFramebufferSizeCallback(m_native,  [](GLFWwindow* window, int width, int height) {
-            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+        glfwSetFramebufferSizeCallback(m_native,  [](GLFWwindow* window_ptr, int width, int height) {
+            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window_ptr));
             ptr->m_buffer_width  = width;
             ptr->m_buffer_height = height;
         });
-        glfwSetWindowCloseCallback(m_native, [](GLFWwindow* window) {
-            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+        glfwSetWindowCloseCallback(m_native, [](GLFWwindow* window_ptr) {
+            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window_ptr));
             ptr->m_should_close = true;
         });
         //glfwSetKeyCallback(m_native, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -214,7 +214,7 @@ public:
     auto channels() const noexcept -> std::size_t { return m_channels; }
     auto data() const noexcept -> std::uint8_t const* { return m_buffer; }
     auto pixel(std::size_t const& x, std::size_t const& y) const noexcept -> glm::vec4 {
-        if (x < 0 || x > m_width - 1 || y < 0 || y > m_height - 1) return {};
+        if (x > m_width - 1 || y > m_height - 1) return {};
         auto const index = (y * m_channels * m_width) + (x * m_channels);
         glm::vec4 color{};
         for (std::size_t i = 0; i < m_channels; i++)
@@ -223,7 +223,7 @@ public:
     };
 
     auto set_pixel(std::size_t const& x, std::size_t const& y, glm::vec4 const& color) const noexcept -> void {
-        if (x < 0 || x > m_width - 1 || y < 0 || y > m_height - 1) return;
+        if (x > m_width - 1 || y > m_height - 1) return;
         auto const index = (y * m_channels * m_width) + (x * m_channels);
         for (std::size_t i = 0; i < m_channels && i < 4; i++)
             m_buffer[index + i] = std::uint8_t(color[std::int32_t(i)] * 255.0f);
@@ -533,23 +533,23 @@ private:
     }
 
     auto compile(std::uint32_t const& type, char const* source) -> std::uint32_t {
-        std::uint32_t shader = glCreateShader(type);
-        glShaderSource(shader, 1, &source, nullptr);
-        glCompileShader(shader);
+        std::uint32_t program = glCreateShader(type);
+        glShaderSource(program, 1, &source, nullptr);
+        glCompileShader(program);
 
         std::int32_t is_success;
         constexpr auto LOG_SIZE = 512;
         static char info_log[LOG_SIZE];
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &is_success);
+        glGetShaderiv(program, GL_COMPILE_STATUS, &is_success);
         if (!is_success) {
-            glGetShaderInfoLog(shader, LOG_SIZE, nullptr, info_log);
+            glGetShaderInfoLog(program, LOG_SIZE, nullptr, info_log);
             auto const err_str = fmt::format("shader compile error [{}] - {}",
                 type == GL_VERTEX_SHADER ? "vertex_" : "fragment",
                 info_log);
             throw std::runtime_error(err_str);
         }
 
-        return shader;
+        return program;
     }
 
     auto link(std::uint32_t const& vs, std::uint32_t const& fs) -> std::uint32_t {
@@ -975,7 +975,8 @@ auto run() -> void {
     });
     // auto font_manager = txt::new_font_manager({
     //     .filename = "deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
-    //     .size     = 11,
+    //     .size     = 18,
+    //     .mode     = txt::tf_render_mode::subpixel
     // });
     txt::text_renderer text{
         font_manager,
@@ -1014,11 +1015,12 @@ auto run() -> void {
         auto const fps_text_size = text.render(fps_text, {float(width) - text.text_size(fps_text).x - 5.0f, 0.0f});
         auto txt = "Hello, World!";
         auto text_size = text.text_size(txt);
-        text.render(txt, txt::transform{
-            {float(width / 2) - text_size.x / 2 * 5, -float(height / 2), 0.0f},
-            {0.0f, 0.0f, 0.0f},
-            {5.0f, 5.0f, 1.0f}
-        }, 0xff899f);
+        // text.render(txt, txt::transform{
+        //     {float(width / 2) - text_size.x / 2 * 5, -float(height / 2), 0.0f},
+        //     {0.0f, 0.0f, 0.0f},
+        //     {5.0f, 5.0f, 1.0f}
+        // }, 0xff899f);
+        text.render(txt, {float(width / 2) - text_size.x / 2, -float(height / 2)}, 0xff899f);
 
         text.render("Hej, Charlie!", {5.0f, 0.0f}, 0x9789ff);
 
