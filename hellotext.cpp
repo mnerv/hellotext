@@ -856,13 +856,14 @@ public:
         for (auto const& code : str) {
             if (code == '\n') {
                 position.x = 0.0f;
-                position.y -= float(advance_y >> 6);
+                position.y += float(advance_y >> 6);
                 continue;
             }
             auto const& tf = m_manager->at(code);
             position.x += float(tf.advance.x >> 6);
             advance_y = tf.advance.y;
         }
+        position.y += float(advance_y >> 6);
         return position;
     }
     auto begin() -> void {
@@ -878,7 +879,7 @@ public:
         auto const model = glm::translate(glm::mat4{1.0f}, glm::vec3{position, 0.0f});
         return render(txt, model, color, alpha);
     }
-    auto render(std::string const& txt, transform const& tf = {}, std::uint32_t color = 0xFFFFFF, float alpha = 1.0f) -> glm::vec2 {
+    auto render(std::string const& txt, transform const& tf, std::uint32_t color = 0xFFFFFF, float alpha = 1.0f) -> glm::vec2 {
         auto model = glm::translate(glm::mat4{1.0f}, tf.position);
         auto const rotate_x = glm::rotate(glm::mat4{1.0f}, tf.rotation.x, {1.0f, 0.0f, 0.0f});
         auto const rotate_y = glm::rotate(glm::mat4{1.0f}, tf.rotation.y, {1.0f, 0.0f, 0.0f});
@@ -964,7 +965,7 @@ private:
 auto run() -> void {
     auto window = txt::new_window({
         "Hello, Text!",
-        1280, 720
+        1280, 800
     });
 
     auto font_manager = txt::new_font_manager({
@@ -987,10 +988,13 @@ auto run() -> void {
 
     std::size_t instances = 0;
     while(!window->should_close()) {
+        auto const width  = window->width();
+        auto const height = window->height();
+
         glm::mat4 model{1.0f};
-        model = glm::translate(model, {0, float(window->height() - font_manager->font().pixel_size), 0.0f});
+        model = glm::translate(model, {0, float(height) - float(font_manager->font().pixel_size), 0.0f});
         auto const view = glm::lookAt(glm::vec3{0.0, 0.0, 1.0}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
-        auto const projection = glm::ortho(0.0f, float(window->width()), 0.0f, float(window->height()));
+        auto const projection = glm::ortho(0.0f, float(width), 0.0f, float(height));
 
         previous_time = current_time;
         current_time = window->time();
@@ -1007,17 +1011,23 @@ auto run() -> void {
 
         text.begin();
         auto const fps_text = fmt::format("{:.2f} ms", delta_time * 1000.0);
-        auto const fps_text_size = text.render(fps_text, {float(window->width() - text.text_size(fps_text).x - 5), 0.0f});
-        auto const txt = "Hello, World!";
-        auto const text_size = text.text_size(txt);
+        auto const fps_text_size = text.render(fps_text, {float(width) - text.text_size(fps_text).x - 5.0f, 0.0f});
+        auto txt = "Hello, World!";
+        auto text_size = text.text_size(txt);
         text.render(txt, txt::transform{
-            {float(window->width() / 2) - text_size.x / 2 * 5, -float(window->height() / 2 + text_size.y / 2 * 5), 0.0f},
+            {float(width / 2) - text_size.x / 2 * 5, -float(height / 2), 0.0f},
             {0.0f, 0.0f, 0.0f},
             {5.0f, 5.0f, 1.0f}
-        }, 0xffced7);
+        }, 0xff899f);
+
+        text.render("Hej, Charlie!", {5.0f, 0.0f}, 0x9789ff);
+
+        txt = "Trying to feel alive";
+        text_size = text.text_size(txt);
+        text.render(txt, {5.0f, -float(height) + text_size.y + 5.0f}, 0xa0cfd8);
 
         auto const instance_count_text = fmt::format("{} instances", instances);
-        text.render(instance_count_text, {float(window->width() - text.text_size(instance_count_text).x - 5), -fps_text_size.y});
+        text.render(instance_count_text, {float(width) - text.text_size(instance_count_text).x - 5.0f, -fps_text_size.y});
         instances = text.size();
         text.end();
 
