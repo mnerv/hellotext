@@ -4,6 +4,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)  # Group CMake targets inside a fol
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)         # Generate compile_commands.json for language servers
 
 add_subdirectory(deps/stb)
+find_package(Threads REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(freetype CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -19,7 +20,7 @@ if (APPLE)
         "-framework CoreVideo"
         "-framework OpenGL"
     )
-elseif (LINUX)
+elseif (UNIX AND NOT APPLE)  # Linux, BSD, Solaris, Minix
     set(PLATFORM_LINK_LIBRARIES
         "dl"
         "m"
