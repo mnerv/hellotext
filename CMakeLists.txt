@@ -10,6 +10,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(utf8cpp CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
+find_package(Tracy CONFIG REQUIRED)
 
 if (APPLE)
     set(PLATFORM_LINK_LIBRARIES
@@ -62,12 +63,14 @@ target_compile_options(${TARGET} PRIVATE ${TARGET_OPTIONS})
 target_link_libraries(${TARGET}
     PRIVATE
     ${PLATFORM_LINK_LIBRARIES}
-    stb
+    stb::stb
     freetype
     glad::glad
     glfw
     glm::glm
     utf8::cpp
     fmt::fmt
+    Tracy::TracyClient
 )
+
 source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" FILES ${TARGET_SOURCE_FILES})

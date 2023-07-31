@@ -12,9 +12,9 @@ layout(location = 0, index = 1) out vec4 color_mask;
 in vec2 _uv;
 in vec2 _size;
 in vec2 _offset;
+in vec4 _color;
 
 uniform vec2 u_size;
-uniform vec4 u_color;
 uniform sampler2D u_texture;
 
 void main() {
@@ -25,15 +25,15 @@ void main() {
 
 #if RENDER_MODE == SUBPIXEL
     vec4 s = texture(u_texture, uv);  // Texture sample
-    color = u_color;
-    color_mask = u_color.a * s;
+    color = _color;
+    color_mask = _color.a * s;
 #elif RENDER_MODE == SDF
     float d = texture(u_texture, uv).r;
     float aaf = fwidth(d);
     float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
-    color = vec4(u_color.rgb, a);
+    color = vec4(_color.rgb, a);
 #else
     float d = texture(u_texture, uv).r;
-    color = vec4(u_color.rgb, d);
+    color = vec4(_color.rgb, d);
 #endif
 }

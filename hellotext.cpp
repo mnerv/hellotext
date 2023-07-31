@@ -1,4 +1,6 @@
 #include <cstdint>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/vector_float3.hpp>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -24,7 +26,6 @@
 
 #include "stb_image.h"
 #include "stb_image_write.h"
-
 #include "utf8cpp/utf8.h"
 
 namespace txt {
@@ -39,6 +40,15 @@ constexpr decltype(auto) curry(auto f, auto... ps){
     } else {
         return [f, ps...](auto... qs) -> decltype(auto) { return curry(f, ps..., qs...); };
     }
+}
+
+constexpr auto hex2rgba(std::uint32_t color, float alpha = 1.0f) -> glm::vec4 {
+    return {
+        float((color >> 16 & 0xFF)) / 255.0f,
+        float((color >>  8 & 0xFF)) / 255.0f,
+        float((color >>  0 & 0xFF)) / 255.0f,
+        alpha
+    };
 }
 
 [[maybe_unused]]static auto setup_opengl() -> void {
@@ -115,6 +125,24 @@ public:
             auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
             ptr->m_should_close = true;
         });
+        //glfwSetKeyCallback(m_native, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+        //    auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+        //});
+        //glfwSetMouseButtonCallback(m_native, [](GLFWwindow* window, int button, int action, int mods) {
+        //    auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+        //});
+        //glfwSetCursorPosCallback(m_native, [](GLFWwindow* window, double xpos, double ypos) {
+        //    auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+        //});
+        //glfwSetScrollCallback(m_native, [](GLFWwindow* window, double xoffset, double yoffset) {
+        //    auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+        //});
+        //glfwSetCharCallback(m_native, [](GLFWwindow* window, std::uint32_t codepoint) {
+        //    auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+        //});
+        //glfwSetDropCallback(m_native, [](GLFWwindow* window, int count, const char** paths) {
+        //    auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
+        //});
 
         glfwGetWindowSize(m_native, &m_width, &m_height);
         glfwGetFramebufferSize(m_native, &m_buffer_width, &m_buffer_height);
@@ -275,12 +303,11 @@ auto new_texture(void const* data, std::uint32_t width, std::uint32_t height, st
 }
 
 struct attrib {
-    std::uint32_t count;
+    std::size_t   count;
     std::string   name;
-    std::size_t   index   = 0;
-    std::uint32_t divisor = 0;
-    std::size_t   offset  = 0;
+    std::size_t   divisor = 0;
     std::uint32_t type    = GL_FLOAT;
+    std::size_t   offset  = 0;
     bool          normalised = false;
 
     static inline constexpr auto type_size(GLenum type) -> std::size_t {
@@ -331,10 +358,8 @@ public:
 
 private:
     auto compute_offset() -> void {
-        std::size_t index  = 0;
         std::size_t offset = 0;
         for (auto& a : m_attribs) {
-            if (a.index == 0) a.index = index++;
             a.offset = offset;
             offset += a.count * attrib::type_size(a.type);
         }
@@ -401,7 +426,7 @@ private:
 };
 
 using index_buffer_ref_t = std::shared_ptr<index_buffer>;
-auto new_index_buffer(void const* data, std::size_t bytes, std::size_t size, GLenum type, GLenum usage = GL_STATIC_DRAW) -> index_buffer_ref_t {
+auto new_index_buffer(void const* data, std::size_t bytes, std::size_t size, GLenum type = GL_UNSIGNED_INT, GLenum usage = GL_STATIC_DRAW) -> index_buffer_ref_t {
     return std::make_shared<index_buffer>(data, bytes, size, type, usage);
 }
 
@@ -421,9 +446,17 @@ public:
         auto const& layout = buffer->layout();
         auto const stride = compute_stride(layout);
         std::for_each(std::begin(layout), std::end(layout), [&](attrib const& a) {
-            glEnableVertexAttribArray(GLuint(a.index));
-            glVertexAttribPointer(GLuint(a.index), GLint(a.count), GLenum(a.type), GLboolean(a.normalised), GLsizei(stride), (void const*)a.offset);
-            glVertexAttribDivisor(GLuint(a.index), GLuint(a.divisor));
+            if (a.count <= 4) {
+                glEnableVertexAttribArray(GLuint(m_index));
+                glVertexAttribPointer(GLuint(m_index), GLint(a.count), GLenum(a.type), GLboolean(a.normalised), GLsizei(stride), (void const*)a.offset);
+                glVertexAttribDivisor(GLuint(m_index++), GLuint(a.divisor));
+            } else if (a.count == 4 * 4) {
+                for (std::size_t i = 0; i < 4; ++i) {
+                    glEnableVertexAttribArray(GLuint(m_index));
+                    glVertexAttribPointer(GLuint(m_index), 4, GLenum(a.type), GLboolean(a.normalised), GLsizei(stride), (void const*)(a.offset + i * sizeof(glm::vec4)));
+                    glVertexAttribDivisor(GLuint(m_index++), GLuint(a.divisor));
+                }
+            }
         });
         m_buffers.push_back(std::move(buffer));
         glBindVertexArray(0);
@@ -448,6 +481,7 @@ private:
 
 private:
     std::uint32_t m_id;
+    std::size_t   m_index{0};
     std::vector<vertex_buffer_ref_t> m_buffers{};
 };
 
@@ -549,230 +583,140 @@ auto new_shader(std::string const& vs_src, std::string const& fs_src) -> shader_
     return std::make_shared<shader>(vs_src, fs_src);
 }
 
-struct typeface {
-    std::uint32_t code;
-    glm::ivec2    bearing;
-    std::int64_t  advance_x;
-    std::int64_t  advance_y;
-    image_ref_t   bitmap{nullptr};
-    glm::ivec2    uv{0, 0};
-};
-using charset_t = std::unordered_map<std::uint32_t, typeface>;
-
-enum class render_mode : std::uint32_t {
+enum class tf_render_mode {
     normal,
     sdf,
     subpixel,
-    raster,
+    raster
 };
+
+struct glyph {
+    std::uint32_t code;             // UTF-32 code point
+    glm::ivec2    bearing;          // Offset from baseline to left/top of glyph
+    glm::i64vec2  advance;          // Offset to advance to next glyph
+    image_ref_t   bitmap{nullptr};  // Loaded bitmap
+    glm::ivec2    uv{0, 0};         // uv offset in texture atlas in pixels
+};
+using glyph_set_t = std::unordered_map<std::uint32_t, glyph>;
 
 struct font_props {
-    std::string   filename;
-    std::uint32_t size;
-    render_mode   mode{render_mode::normal};
+    std::string    filename;
+    std::uint32_t  size;
+    tf_render_mode mode{tf_render_mode::normal};
 };
 
-class text_renderer {
-private:
-    struct gpu_tf {
-        glm::vec2 size;
-        glm::vec2 offset;
-        glm::vec2 uv;
-    };
+struct font_t {
+    std::string    filename;
+    std::uint32_t  pixel_size;
+    texture_ref_t  texture;
+    image_ref_t    atlas;
+    glyph_set_t    glyphs;
+    glm::ivec2     uv;
+    std::uint32_t  atlas_size;
+    std::uint32_t  max_size;  // max size of a glyph in the font
+    tf_render_mode mode;
+    bool           is_invalid;
+    std::uint32_t  channels;
+    std::int32_t   flags;
+    FT_Face        face;
+};
 
+class font_manager{
 public:
-    text_renderer(font_props const& props) {
+    font_manager(font_props const& props) {
         if (FT_Init_FreeType(&m_library))
             throw std::runtime_error("Failed to initialse FreeType library");
         FT_Bitmap_Init(&m_bitmap);
 
-        m_filename   = props.filename;
-        m_pixel_size = props.size;
-        m_mode       = props.mode;
-        m_is_invalid = true;
+        m_font.filename   = props.filename;
+        m_font.pixel_size = props.size;
+        m_font.mode       = props.mode;
+        m_font.is_invalid = true;
 
+        load();
+    }
+    ~font_manager() {
+        FT_Bitmap_Done(m_library, &m_bitmap);
+        FT_Done_FreeType(m_library);
+    }
+
+    auto texture() const -> texture_ref_t const& { return m_font.texture; }
+    auto at(std::uint32_t codepoint) -> glyph const& {
+        auto it = m_font.glyphs.find(codepoint);
+        if (it == std::end(m_font.glyphs)) {
+            // TODO: Try to load it and rebuild the atlas
+            return m_font.glyphs.at('A');
+        }
+        return it->second;
+    }
+    auto font() const -> font_t const& { return m_font; }
+
+private:
+    auto load() -> void {
+        m_font.channels = 1;
         std::int32_t flags = FT_LOAD_RENDER;
-        if (m_mode == render_mode::raster) {
+        if (m_font.mode == tf_render_mode::raster) {
             // Do nothing, we render as usual
-        } else if (m_mode == render_mode::sdf) {
+        } else if (m_font.mode == tf_render_mode::sdf) {
             flags |=  FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
-        } else if (m_mode == render_mode::subpixel) {
+        } else if (m_font.mode == tf_render_mode::subpixel) {
             flags |= FT_LOAD_TARGET_(FT_RENDER_MODE_LCD);
             FT_Library_SetLcdFilter(m_library, FT_LCD_FILTER_DEFAULT);
-            m_channels = 3;
+            m_font.channels = 3;
         }
-        m_load_flags = flags;
+        m_font.flags = flags;
 
-        if (!std::filesystem::exists(m_filename)) {
-            throw std::runtime_error(fmt::format("Font file path '{}' does not exist.", m_filename));
+        if (!std::filesystem::exists(m_font.filename)) {
+            throw std::runtime_error(fmt::format("Font file path '{}' does not exist.", m_font.filename));
         }
 
-        auto const ff_ec = FT_New_Face(m_library, m_filename.c_str(), 0, &m_face);
+        auto const ff_ec = FT_New_Face(m_library, m_font.filename.c_str(), 0, &m_font.face);
         if (ff_ec == FT_Err_Unknown_File_Format)
-            throw std::runtime_error(fmt::format("Font file path '{}' have an unknown file format.", m_filename));
+            throw std::runtime_error(fmt::format("Font file path '{}' have an unknown file format.", m_font.filename));
         else if(ff_ec)
             throw std::runtime_error("Error loading font file.");
 
-        FT_Set_Pixel_Sizes(m_face, 0, m_pixel_size);
+        FT_Set_Pixel_Sizes(m_font.face, 0, m_font.pixel_size);
         // Load inital characters
         for (std::uint32_t code = 0; code < 128; ++code)
             load_typeface(code);
 
         resize_cache();
         reload_cache();
-
-        [[maybe_unused]]static constexpr float quad_vertices[] = {
-        //     x,     y,     z,       u,    v,
-            0.0f,  0.0f,  0.0f,    0.0f, 0.0f,
-            0.0f,  1.0f,  0.0f,    0.0f, 1.0f,
-            1.0f,  1.0f,  0.0f,    1.0f, 1.0f,
-            1.0f,  0.0f,  0.0f,    1.0f, 0.0f,
-        };
-        [[maybe_unused]]static constexpr std::uint32_t quad_cw_indices[] = {
-            0, 1, 2,
-            0, 2, 3
-        };
-
-        auto quad_vertex = new_vertex_buffer(quad_vertices, sizeof(quad_vertices), {
-            {3, "a_position"},
-            {2, "a_uv"}
-        });
-        m_text_vertex = new_vertex_buffer(nullptr, sizeof(gpu_tf), {
-            {2, "a_size",      2, 1},
-            {2, "a_offset",    3, 1},
-            {2, "a_uv_offset", 4, 1},
-        }, GL_DYNAMIC_DRAW);
-        m_index_buffer = new_index_buffer(quad_cw_indices, sizeof(quad_cw_indices), len(quad_cw_indices), GL_UNSIGNED_INT);
-        m_vertex_array = new_vertex_array();
-        m_vertex_array->add(quad_vertex);
-        m_vertex_array->add(m_text_vertex);
-
-        auto vs = read_text("shaders/text.vert");
-        auto fs = read_text("shaders/text.frag");
-        if (m_mode == render_mode::sdf) {
-            auto const line = fs.find('\n');
-            fs.insert(line + 1, "#define RENDER_MODE SDF\n");
-        } else if (m_mode == render_mode::subpixel) {
-            auto const line = fs.find('\n');
-            fs.insert(line + 1, "#define RENDER_MODE SUBPIXEL\n");
-        }
-        m_shader = new_shader(vs, fs);
-    }
-    ~text_renderer() {
-        FT_Bitmap_Done(m_library, &m_bitmap);
-        FT_Done_FreeType(m_library);
     }
 
-    auto find(std::uint32_t code) -> typeface {
-        auto it = m_charset.find(code);
-        if (it == std::end(m_charset)) {
-            return {};
-        }
-        return it->second;
-    }
-
-    auto pixel_size() const -> std::uint32_t { return m_pixel_size; }
-    auto texture() const -> texture_ref_t {
-        return m_texture;
-    }
-    auto shader() const -> shader_ref_t const& { return m_shader; }
-
-    auto begin() -> void {
-        m_size = 0;
-        glEnable(GL_BLEND);
-        if (m_mode == render_mode::subpixel) {
-            glBlendFunc(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR);
-        } else {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        }
-    }
-    auto render(std::string const& txt, glm::vec2 position = {}) -> void {
-        m_codes.resize(0);
-        utf8::utf8to32(std::begin(txt), std::end(txt), std::back_inserter(m_codes));
-        std::int64_t advance_y = 0;
-        for (auto const& code : m_codes) {
-            if (code == '\n') {
-                position.x = 0.0f;
-                position.y -= float(advance_y >> 6);
-                continue;
-            }
-            auto const& tf = find(code);
-            advance_y = tf.advance_y;
-            push(tf, position);
-            position.x += float(tf.advance_x >> 6);
-        }
-    }
-    auto end() -> void {
-        if (m_size == 0) return;
-        m_shader->bind();
-        m_shader->set_vec2("u_size", {float(m_texture->width()), float(m_texture->height())});
-        m_shader->set_num("u_texture", 0);
-        m_texture->bind();
-
-        m_text_vertex->resize(m_size * sizeof(gpu_tf));
-        m_text_vertex->sub_data(m_gpu_cache.data(), m_size * sizeof(gpu_tf));
-        m_vertex_array->bind();
-        m_index_buffer->bind();
-        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_index_buffer->size()), GLenum(m_index_buffer->type()), nullptr, GLsizei(m_size));
-        m_shader->unbind();
-    }
-
-private:
-    auto push(typeface const& tf, glm::vec2 const& position = {}) -> void {
-        auto const xpos = position.x + float(tf.bearing.x);
-        auto const ypos = position.y - (float(tf.bitmap->height()) - float(tf.bearing.y));
-        auto const w = float(tf.bitmap->width());
-        auto const h = float(tf.bitmap->height());
-        auto const u = float(tf.uv.x);
-        auto const v = float(tf.uv.y);
-
-        gpu_tf ch{
-            {w, h},
-            {xpos, ypos},
-            {u, v}
-        };
-
-        if (m_size < m_gpu_cache.size()) {
-            m_gpu_cache[m_size] = std::move(ch);
-        } else {
-            m_gpu_cache.push_back(std::move(ch));
-        }
-        ++m_size;
-    }
-
-private:
     auto load_typeface(std::uint32_t code) -> void {
-        auto const index = FT_Get_Char_Index(m_face, code);
+        auto const index = FT_Get_Char_Index(m_font.face, code);
         if (index == 0) return;
-        if (FT_Load_Glyph(m_face, index, m_load_flags))
+        if (FT_Load_Glyph(m_font.face, index, m_font.flags))
             return;
 
-        auto const width     = m_face->glyph->bitmap.width / m_channels;
-        auto const height    = m_face->glyph->bitmap.rows;
-        auto const left      = m_face->glyph->bitmap_left;
-        auto const top       = m_face->glyph->bitmap_top;
-        auto const advance_x = m_face->glyph->advance.x;
-        auto const advance_y = m_face->size->metrics.height;
+        auto const width     = m_font.face->glyph->bitmap.width / m_font.channels;
+        auto const height    = m_font.face->glyph->bitmap.rows;
+        auto const left      = m_font.face->glyph->bitmap_left;
+        auto const top       = m_font.face->glyph->bitmap_top;
+        auto const advance_x = m_font.face->glyph->advance.x;
+        auto const advance_y = m_font.face->size->metrics.height;
 
         // Convert to one byte alignment
-        FT_Bitmap_Convert(m_library, &m_face->glyph->bitmap, &m_bitmap, 1);
-        auto img = new_image(m_bitmap.buffer, width, height, m_channels);
+        FT_Bitmap_Convert(m_library, &m_font.face->glyph->bitmap, &m_bitmap, 1);
+        auto img = new_image(m_bitmap.buffer, width, height, m_font.channels);
 
-        typeface tp{
-            code,
-            {left,  top},
-            advance_x, advance_y,
-            img,
-            {0, 0}
+        glyph tf{
+            .code    = code,
+            .bearing = {left,  top},
+            .advance = {advance_x, advance_y},
+            .bitmap  = img,
+            .uv      = {0, 0}
         };
-        m_charset[code] = std::move(tp);
+        m_font.glyphs[code] = std::move(tf);
 
         auto const width_or_height = std::max(width, height);
-        m_max_size = std::max(m_max_size, width_or_height);
+        m_font.max_size = std::max(m_font.max_size, width_or_height);
     }
 
     auto reload_all() -> void {
-        for (auto const& [code, tp] : m_charset)
+        for (auto const& [code, tf] : m_font.glyphs)
             load_typeface(code);
 
         resize_cache();
@@ -780,19 +724,19 @@ private:
     }
 
     auto reload_cache() -> void {
-        for (auto& [code, font] : m_charset)
+        for (auto& [code, font] : m_font.glyphs)
             insert_atlas(font);
 
         std::uint32_t internal_format = GL_R8;
         std::uint32_t format = GL_RED;
-        if (m_channels == 3) {
+        if (m_font.channels == 3) {
             internal_format = GL_RGB8;
             format = GL_RGB;
         }
 
-        m_texture = new_texture(m_atlas->data(), std::uint32_t(m_atlas->width()), std::uint32_t(m_atlas->height()), std::uint32_t(m_atlas->channels()), internal_format, format, GL_UNSIGNED_BYTE);
-        m_texture->bind();
-        if (m_mode == render_mode::raster) {
+        m_font.texture = new_texture(m_font.atlas->data(), std::uint32_t(m_font.atlas->width()), std::uint32_t(m_font.atlas->height()), std::uint32_t(m_font.atlas->channels()), internal_format, format, GL_UNSIGNED_BYTE);
+        m_font.texture->bind();
+        if (m_font.mode == tf_render_mode::raster) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         } else {
@@ -801,128 +745,280 @@ private:
         }
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        m_texture->unbind();
+        m_font.texture->unbind();
     }
 
     auto resize_cache() -> void {
         constexpr auto round_up2 = [](auto const& value) {
             return std::pow(2, std::ceil(std::log2(value) / std::log2(2)));
         };
-        auto const cols = static_cast<std::uint32_t>(std::ceil(std::sqrt(m_charset.size())));
-        auto const msp2 = static_cast<std::uint32_t>(round_up2(m_max_size));  // Glyph max size round to power of 2
-        m_image_size = static_cast<std::uint32_t>(round_up2(cols * msp2));
-        if (m_atlas == nullptr || m_image_size != m_atlas->width()) {
-            m_atlas = txt::new_image(m_image_size, m_image_size, m_channels);
-            m_uv = {0, std::int32_t(m_image_size) - 1};
+        auto const cols = static_cast<std::uint32_t>(std::ceil(std::sqrt(m_font.glyphs.size())));
+        auto const msp2 = static_cast<std::uint32_t>(round_up2(m_font.max_size));  // Glyph max size round to power of 2
+        m_font.atlas_size = static_cast<std::uint32_t>(round_up2(cols * msp2));
+        if (m_font.atlas == nullptr || m_font.atlas_size != m_font.atlas->width()) {
+            m_font.atlas = txt::new_image(m_font.atlas_size, m_font.atlas_size, m_font.channels);
+            m_font.uv = {0, std::int32_t(m_font.atlas_size) - 1};
         }
     }
 
-    auto insert_atlas(typeface& tf) -> void {
+    auto insert_atlas(glyph& tf) -> void {
         auto const& bm = tf.bitmap;
         for (std::size_t i = 0; i < bm->height(); ++i) {
             for (std::size_t j = 0; j < bm->width(); ++j) {
                 auto const pixel = bm->pixel(j, i);
-                m_atlas->set_pixel(std::size_t(m_uv.x) + j, std::size_t(m_uv.y) - i, pixel);
+                m_font.atlas->set_pixel(std::size_t(m_font.uv.x) + j, std::size_t(m_font.uv.y) - i, pixel);
             }
         }
         tf.uv = {
-            m_uv.x,
-            m_uv.y - std::int32_t(bm->height() - 1)
+            m_font.uv.x,
+            m_font.uv.y - std::int32_t(bm->height() - 1)
         };
 
-        m_uv.x += m_max_size;
-        if (m_uv.x >= std::int32_t(m_atlas->width() - m_max_size)) {
-            m_uv.x = 0;
-            m_uv.y -= m_max_size;
+        m_font.uv.x += m_font.max_size;
+        if (m_font.uv.x >= std::int32_t(m_font.atlas->width() - m_font.max_size)) {
+            m_font.uv.x = 0;
+            m_font.uv.y -= m_font.max_size;
         }
     }
 
 private:
     FT_Library m_library{};
     FT_Bitmap  m_bitmap{};
+    font_t     m_font{};
+};
 
-    std::size_t m_size{0};
-    std::vector<gpu_tf> m_gpu_cache{};
-    index_buffer_ref_t  m_index_buffer{nullptr};
-    vertex_buffer_ref_t m_text_vertex{nullptr};
-    vertex_array_ref_t  m_vertex_array{nullptr};
+using font_manager_ref_t = std::shared_ptr<font_manager>;
+auto new_font_manager(font_props const& props) -> font_manager_ref_t {
+    return std::make_shared<font_manager>(props);
+}
 
-    std::string    m_filename{};
-    std::uint32_t  m_pixel_size{};
-    charset_t      m_charset{};         // Loaded charset
-    FT_Face        m_face{nullptr};     // FreeType font face
-    image_ref_t    m_atlas{nullptr};    // Image cache
-    std::size_t    m_image_size{0};
-    texture_ref_t  m_texture{nullptr};  // Texture atlas
-    glm::ivec2     m_uv{0, 0};          // Current UV coordinate
-    std::uint32_t  m_max_size{0};       // Maximum possible size in bitmap
-    std::int32_t   m_load_flags{0};
-    render_mode    m_mode{render_mode::normal};
-    bool           m_is_invalid{true};
-    std::uint32_t  m_channels{1};
-    std::u32string m_codes{};
-    shader_ref_t   m_shader{nullptr};
+struct transform {
+    glm::vec3 position{};
+    glm::vec3 rotation{};
+    glm::vec3 scale{};
+};
+
+class text_renderer {
+public:
+    struct gpu {
+        glm::vec2 size;
+        glm::vec2 uv;
+        glm::vec4 color;
+        glm::mat4 model;
+    };
+
+public:
+    text_renderer(font_manager_ref_t const& font_manager, std::string const& vertex_shader_path, std::string const& fragment_shader_path)
+        : m_manager(font_manager), m_size(0), m_va(new_vertex_array()) {
+        static constexpr float quad_vertices[] = {
+        //     x,     y,     z,       u,    v,
+            0.0f,  0.0f,  0.0f,    0.0f, 0.0f,
+            0.0f,  1.0f,  0.0f,    0.0f, 1.0f,
+            1.0f,  1.0f,  0.0f,    1.0f, 1.0f,
+            1.0f,  0.0f,  0.0f,    1.0f, 0.0f,
+        };
+        static constexpr std::uint32_t quad_cw_indices[] = {
+            0, 1, 2,
+            0, 2, 3
+        };
+        m_va->add(new_vertex_buffer(quad_vertices, sizeof(quad_vertices), {
+            {.count = 3, .name = "a_position"},
+            {.count = 2, .name = "a_uv"},
+        }));
+        m_ib = new_index_buffer(quad_cw_indices, sizeof(quad_cw_indices), len(quad_cw_indices));
+        m_tb = new_vertex_buffer(nullptr, 0, {
+            {.count = 2,     .name = "a_size"  , .divisor = 1},
+            {.count = 2,     .name = "a_offset", .divisor = 1},
+            {.count = 4,     .name = "a_color" , .divisor = 1},
+            {.count = 4 * 4, .name = "a_model" , .divisor = 1},
+        }, GL_DYNAMIC_DRAW);
+        m_va->add(m_tb);
+
+        auto vs = read_text(vertex_shader_path);
+        auto fs = read_text(fragment_shader_path);
+        if (m_manager->font().mode == tf_render_mode::sdf) {
+            auto const line = fs.find('\n');
+            fs.insert(line + 1, "#define RENDER_MODE SDF\n");
+        } else if (m_manager->font().mode == tf_render_mode::subpixel) {
+            auto const line = fs.find('\n');
+            fs.insert(line + 1, "#define RENDER_MODE SUBPIXEL\n");
+        }
+        m_shader = new_shader(vs, fs);
+    }
+
+    auto shader() const -> shader_ref_t const& { return m_shader; }
+    auto size() const -> std::size_t { return m_size; }
+    auto text_size(std::string const& txt) -> glm::vec2 {
+        std::u32string str{};
+        utf8::utf8to32(std::begin(txt), std::end(txt), std::back_inserter(str));
+        glm::vec2 position{0.0f};
+        std::int64_t advance_y = 0;
+        for (auto const& code : str) {
+            if (code == '\n') {
+                position.x = 0.0f;
+                position.y -= float(advance_y >> 6);
+                continue;
+            }
+            auto const& tf = m_manager->at(code);
+            position.x += float(tf.advance.x >> 6);
+            advance_y = tf.advance.y;
+        }
+        return position;
+    }
+    auto begin() -> void {
+        m_size = 0;
+        glEnable(GL_BLEND);
+        if (m_manager->font().mode == tf_render_mode::subpixel) {
+            glBlendFunc(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR);
+        } else {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+    }
+    auto render(std::string const& txt, glm::vec2 const& position = {}, std::uint32_t color = 0xFFFFFF, float alpha = 1.0f) -> glm::vec2 {
+        auto const model = glm::translate(glm::mat4{1.0f}, glm::vec3{position, 0.0f});
+        return render(txt, model, color, alpha);
+    }
+    auto render(std::string const& txt, transform const& tf = {}, std::uint32_t color = 0xFFFFFF, float alpha = 1.0f) -> glm::vec2 {
+        auto model = glm::translate(glm::mat4{1.0f}, tf.position);
+        auto const rotate_x = glm::rotate(glm::mat4{1.0f}, tf.rotation.x, {1.0f, 0.0f, 0.0f});
+        auto const rotate_y = glm::rotate(glm::mat4{1.0f}, tf.rotation.y, {1.0f, 0.0f, 0.0f});
+        auto const rotate_z = glm::rotate(glm::mat4{1.0f}, tf.rotation.z, {1.0f, 0.0f, 0.0f});
+        model = model * rotate_x * rotate_y * rotate_z;
+        model = glm::scale(model, tf.scale);
+        return render(txt, model, color, alpha);
+    }
+    auto render(std::string const& txt, glm::mat4 const& model, std::uint32_t color = 0xFFFFFF, float alpha = 1.0f) -> glm::vec2 {
+        auto const color_f32s = hex2rgba(color, alpha);
+        std::u32string str{};
+        utf8::utf8to32(std::begin(txt), std::end(txt), std::back_inserter(str));
+        glm::vec3 position{0.0f, 0.0f, 0.0f};
+        std::int64_t advance_y = 0;
+        for (auto const& code : str) {
+            if (code == '\n') {
+                position.x = 0.0f;
+                position.y -= float(advance_y >> 6);
+                continue;
+            }
+            auto const& tf = m_manager->at(code);
+            push(tf, glm::translate(model, position), color_f32s);
+            position.x += float(tf.advance.x >> 6);
+            advance_y = tf.advance.y;
+        }
+        position.y += float(advance_y >> 6);
+        return position;
+    }
+    auto end() -> void {
+        if (m_size == 0) return;
+
+        m_shader->bind();
+        m_shader->set_vec2("u_size", {float(m_manager->texture()->width()), float(m_manager->texture()->height())});
+        m_manager->texture()->bind();
+        m_shader->set_num("u_texture", 0);
+
+        m_tb->resize(m_size * sizeof(gpu));
+        m_tb->sub_data(m_cache.data(), m_size * sizeof(gpu));
+        m_va->bind();
+        m_ib->bind();
+        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_ib->size()), GLenum(m_ib->type()), nullptr, GLsizei(m_size));
+        m_shader->unbind();
+    }
+
+public:
+    auto push(glyph const& tf, glm::mat4 model, glm::vec4 color) -> void {
+        auto const xpos = float(tf.bearing.x);
+        auto const ypos = -(float(tf.bitmap->height()) - float(tf.bearing.y));
+        auto const w = float(tf.bitmap->width());
+        auto const h = float(tf.bitmap->height());
+        auto const u = float(tf.uv.x);
+        auto const v = float(tf.uv.y);
+        model = glm::translate(model, {xpos, ypos, 0.0f});
+
+        gpu ch{
+            .size  = {w, h},
+            .uv    = {u, v},
+            .color = color,
+            .model = model
+        };
+
+        if (m_size < m_cache.size()) {
+            m_cache[m_size] = std::move(ch);
+        } else {
+            m_cache.push_back(std::move(ch));
+        }
+        ++m_size;
+    }
+
+private:
+    font_manager_ref_t m_manager;
+    std::size_t        m_size;
+
+    vertex_array_ref_t  m_va{};
+    index_buffer_ref_t  m_ib{};
+    vertex_buffer_ref_t m_tb{};
+    shader_ref_t        m_shader{};
+
+    std::vector<gpu> m_cache{};
 };
 }
 
 auto run() -> void {
     auto window = txt::new_window({
         "Hello, Text!",
-        738, 480,
+        1280, 720
     });
 
-    // txt::text_renderer text{{
-    //     "deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
-    //     11, txt::render_mode::subpixel
-    // }};
-    txt::text_renderer text{{
-        "deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
-        11, txt::render_mode::normal
-    }};
-    // txt::text_renderer text{{
-    //     "deps/fonts/Cozette/CozetteVector.ttf",
-    //     13, txt::render_mode::raster
-    // }};
+    auto font_manager = txt::new_font_manager({
+        .filename = "deps/fonts/Cozette/CozetteVector.ttf",
+        .size     = 13,
+        .mode     = txt::tf_render_mode::raster
+    });
+    // auto font_manager = txt::new_font_manager({
+    //     .filename = "deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
+    //     .size     = 11,
+    // });
+    txt::text_renderer text{
+        font_manager,
+        "shaders/text.vert",
+        "shaders/text.frag"
+    };
 
-    glm::vec3 camera_position{0.0f, 0.0f, 10.0f};
-    glm::vec3 camera_front{0.0f, 0.0f, -1.0f};
-    glm::vec3 camera_up{0.0f, 1.0f, 0.0f};
+    double current_time = window->time();
+    double previous_time = window->time();
 
-    float scale = 1.f;
-    std::string sauce = txt::read_text("./hellotext.cpp");
-
-    double current_time = 0.0;
-    double previous_time = 0.0;
-
-    float offset = 0.0f;
-
+    std::size_t instances = 0;
     while(!window->should_close()) {
+        glm::mat4 model{1.0f};
+        model = glm::translate(model, {0, float(window->height() - font_manager->font().pixel_size), 0.0f});
+        auto const view = glm::lookAt(glm::vec3{0.0, 0.0, 1.0}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
+        auto const projection = glm::ortho(0.0f, float(window->width()), 0.0f, float(window->height()));
+
+        previous_time = current_time;
         current_time = window->time();
         auto const delta_time = current_time - previous_time;
-        previous_time = current_time;
 
-        glm::mat4 model{1.0f};
-        glm::mat4 view = glm::lookAt(camera_position, camera_position + camera_front, camera_up);
-        glm::mat4 projection = glm::ortho(0.0f, float(window->width()), 0.0f, float(window->height()), 0.1f, 100.0f);
-        model = glm::translate(model, glm::vec3{0.0f, float(window->height()) - float(text.pixel_size()) * scale, 0.0f});
-        model = glm::scale(model, glm::vec3{scale});
-
-        offset += float(delta_time) * 64.0f;
+        text.shader()->bind();
+        text.shader()->set_mat4("u_model", model);
+        text.shader()->set_mat4("u_view", view);
+        text.shader()->set_mat4("u_projection", projection);
 
         glViewport(0, 0, window->buffer_width(), window->buffer_height());
         txt::clear_color(0x141414);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        auto const shader = text.shader();
-        shader->bind();
-        shader->set_vec4("u_color", glm::vec4{203.0f / 255.0f, 206.0f / 255.0f, 188.0f / 255.0f, 1.0f});
-        shader->set_mat4("u_model", model);
-        shader->set_mat4("u_view", view);
-        shader->set_mat4("u_projection", projection);
-
         text.begin();
-        text.render(sauce, {0.0f, offset});
-        text.render(fmt::format("{:.2f}", 1.0 / delta_time), glm::vec2(500.0f, 0.0f));
+        auto const fps_text = fmt::format("{:.2f} ms", delta_time * 1000.0);
+        auto const fps_text_size = text.render(fps_text, {float(window->width() - text.text_size(fps_text).x - 5), 0.0f});
+        auto const txt = "Hello, World!";
+        auto const text_size = text.text_size(txt);
+        text.render(txt, txt::transform{
+            {float(window->width() / 2) - text_size.x / 2 * 5, -float(window->height() / 2 + text_size.y / 2 * 5), 0.0f},
+            {0.0f, 0.0f, 0.0f},
+            {5.0f, 5.0f, 1.0f}
+        }, 0xffced7);
+
+        auto const instance_count_text = fmt::format("{} instances", instances);
+        text.render(instance_count_text, {float(window->width() - text.text_size(instance_count_text).x - 5), -fps_text_size.y});
+        instances = text.size();
         text.end();
 
         window->swap();

@@ -1,11 +1,10 @@
-# Binaries
-bin
-obj
-lib
+# Output
+*_out.png
 
 # CMake
-build
+build*
 cmake-build-*
+meson-build-*
 
 # Xcode
 *.xcworkspace
@@ -33,11 +32,12 @@ compile_commands.json
 # IntelliJ
 .idea
 
+# JetBrains Fleet
+.fleet
+.cache
+
 # macOS
 .DS_Store
 .AppleDouble
 .LSOverride
 
-# JetBrains Fleet
-.fleet
-.cache

@@ -13,7 +13,8 @@
       "default-features": false,
       "features": ["gl-api-41", "extensions"]
     },
-    "utfcpp"
+    "utfcpp",
+    "miniaudio",
+    "tracy"
   ]
 }
-
