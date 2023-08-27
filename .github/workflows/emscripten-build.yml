@@ -18,20 +18,17 @@ jobs:
 
     - name: Build emscripten using docker image
       run: |
-        # Generate build system
-        docker run -it --rm -v "$(pwd):/src" emscripten/emsdk emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-sUSE_GLFW=3 -sUSE_WEBGL2=1 -sFULL_ES3=1 -fexceptions --preload-file ./res/fonts/Cozette --preload-file ./shaders"
-        # Copy assets
+        docker run --rm -v "$(pwd):/src" emscripten/emsdk emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-sUSE_GLFW=3 -sUSE_WEBGL2=1 -sFULL_ES3=1 -fexceptions --preload-file ./res/fonts/Cozette --preload-file ./shaders"
+
         mkdir -p build-web/res/fonts
         mkdir -p build-web/shaders
         cp -r res/fonts/Cozette build-web/res/fonts
         cp ./shaders/*.webgl.* build-web/shaders
         cp index.html ./build-web
-        # build
-        docker run -it --rm -v "$(pwd):/src" emscripten/emsdk cmake --build build-web -j
 
-        # prepare for distribution
+        docker run --rm -v "$(pwd):/src" emscripten/emsdk cmake --build build-web -j
+
         mkdir -p dist
-        # copy generated files to dist
         cp build-web/index.html dist
         cp build-web/hellotext.* dist
 
