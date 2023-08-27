@@ -88,6 +88,12 @@ if (NOT MSVC)
         "-Wno-nested-anon-types"
         "-Wno-gnu-anonymous-struct"
     )
+    if (EMSCRIPTEN)
+        list(APPEND BASE_OPTIONS
+            # fmt warnings
+            "-Wno-deprecated-literal-operator"
+        )
+    endif()
 else()
     set(BASE_OPTIONS
         "/W4"

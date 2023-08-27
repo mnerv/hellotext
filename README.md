@@ -13,8 +13,18 @@ Rendering text in OpenGL using FreeType! The hellotext.cpp file includes all the
 
 Use command below to generate build system.
 
+```sh
+cmake -S . -Bbuild
 ```
-cmake -S . -Bbuild "-DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+
+## Build Emscripten
+
+```sh
+docker run -it --rm -v "$(pwd):/src" emscripten/emsdk emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-s USE_GLFW=3 -s USE_WEBGL2=1 -s FULL_ES3=1"
+```
+
+```sh
+docker run -it --rm -v "$(pwd):/src" emscripten/emsdk cmake --build build-web -j
 ```
 
 ## Text Rendering

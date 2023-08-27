@@ -10,8 +10,18 @@
 #include <functional>
 
 #include "fmt/format.h"
-#include "glad/glad.h"
+
+#define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
+#ifdef __EMSCRIPTEN__
+#include "emscripten.h"
+#define GL_GLEXT_PROTOTYPES 1
+#define GL3_PROTOTYPES 1
+#define EGL_EGLEXT_PROTOTYPES 1
+#include "GL/gl.h"
+#else
+#include "glad/glad.h"
+#endif
 
 #include "ft2build.h"
 #include FT_FREETYPE_H
@@ -69,10 +79,12 @@ auto read_text(std::filesystem::path const& filename) -> std::string {
 }
 
 [[maybe_unused]]static auto setup_opengl() -> void {
+#ifndef __EMSCRIPTEN__
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
 }
 
 [[maybe_unused]]static auto info_opengl() -> void {
@@ -100,11 +112,13 @@ public:
         if (m_native == nullptr) {
             throw std::runtime_error(fmt::format("Failed to create GLFW window\n"));
         }
-
         glfwMakeContextCurrent(m_native);
+
+#ifndef __EMSCRIPTEN__
         if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
             throw std::runtime_error(fmt::format("Failed to initialize GLAD\n"));
         }
+#endif
         info_opengl();
 
         // Setup event
@@ -979,6 +993,11 @@ private:
 };
 }
 
+static std::function<void()> loop = nullptr;
+#ifdef __EMSCRIPTEN__
+auto main_loop() -> void { loop(); }
+#endif
+
 auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
     auto window = txt::new_window({
         "Hello, Text!",
@@ -991,7 +1010,7 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
         .mode     = txt::tf_render_mode::raster
     });
     // auto font_manager = txt::new_font_manager({
-    //     .filename = "deps/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
+    //     .filename = "res/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
     //     .size     = 18,
     //     .mode     = txt::tf_render_mode::subpixel
     // });
@@ -1005,7 +1024,7 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
     double previous_time = window->time();
 
     std::size_t instances = 0;
-    while(!window->should_close()) {
+    loop = [&] {
         auto const width  = window->width();
         auto const height = window->height();
 
@@ -1052,7 +1071,13 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
 
         window->swap();
         window->poll();
-    }
+    };
+
+#ifndef __EMSCRIPTEN__
+    while (!window->should_close()) loop();
+#else
+    emscripten_set_main_loop(main_loop, -1, true);
+#endif
 }
 
 auto main(int argc, char const* argv[]) -> int {
