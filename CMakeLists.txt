@@ -26,8 +26,8 @@ FetchContent_Declare(
 list(APPEND FETCH_CONTENTS fmt)
 FetchContent_Declare(
     freetype
-    GIT_REPOSITORY https://git.nrv.nu/mnerv/freetype.git
-    GIT_TAG        2.13.2
+    GIT_REPOSITORY https://github.com/freetype/freetype.git
+    GIT_TAG        VER-2-13-0
 )
 list(APPEND FETCH_CONTENTS freetype)
 FetchContent_Declare(
@@ -107,6 +107,7 @@ if (NOT EMSCRIPTEN)
     set(BASE_LIBRARIES
         glfw
         glad::glad
+        freetype
     )
 endif()
 
@@ -120,7 +121,6 @@ target_link_libraries(hellotext
     ${PLATFORM_LINK_LIBRARIES}
     ${BASE_LIBRARIES}
     fmt
-    freetype
     glm
     utf8::cpp
     stb::stb
