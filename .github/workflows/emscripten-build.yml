@@ -22,7 +22,7 @@ jobs:
 
         sudo mkdir -p build-web/res/fonts
         sudo mkdir -p build-web/shaders
-        sudo cp -r res/fonts/Cozette build-web/res/fonts
+        sudo cp -r res/fonts build-web/res
         sudo cp ./shaders/*.webgl.* build-web/shaders
         sudo cp index.html ./build-web
 

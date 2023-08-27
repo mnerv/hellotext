@@ -2,7 +2,6 @@
 precision mediump float;
 
 layout(location = 0) out vec4 color;
-//layout(location = 0, index = 1) out vec4 color_mask;
 
 #ifndef RENDER_MODE
 #define RENDER_MODE 0

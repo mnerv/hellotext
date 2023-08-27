@@ -29,7 +29,7 @@ Copy assets.
 ```sh
 mkdir -p build-web/res/fonts
 mkdir -p build-web/shaders
-cp -r res/fonts/Cozette build-web/res/fonts
+cp -r res/fonts build-web/res
 cp ./shaders/*.webgl.* build-web/shaders
 cp index.html ./build-web
 ```

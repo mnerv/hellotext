@@ -1032,11 +1032,11 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
         .size     = 13,
         .mode     = txt::tf_render_mode::raster
     });
-    // auto font_manager = txt::new_font_manager({
-    //     .filename = "res/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
-    //     .size     = 18,
-    //     .mode     = txt::tf_render_mode::subpixel
-    // });
+    //auto font_manager = txt::new_font_manager({
+    //    .filename = "res/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
+    //    .size     = 13,
+    //    .mode     = txt::tf_render_mode::normal
+    //});
     txt::text_renderer text{
         font_manager,
 #ifndef __EMSCRIPTEN__
@@ -1079,12 +1079,12 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
         auto const fps_text_size = text.render(fps_text, {float(width) - text.text_size(fps_text).x - 5.0f, 0.0f});
         auto txt = "Hello, World!";
         auto text_size = text.text_size(txt);
-        // text.render(txt, txt::transform{
-        //     {float(width / 2) - text_size.x / 2 * 5, -float(height / 2), 0.0f},
-        //     {0.0f, 0.0f, 0.0f},
-        //     {5.0f, 5.0f, 1.0f}
-        // }, 0xff899f);
-        text.render(txt, {float(width / 2) - text_size.x / 2, -float(height / 2)}, 0xff899f);
+        text.render(txt, txt::transform{
+            {float(width / 2) - text_size.x / 2 * 5, -float(height / 2), 0.0f},
+            {0.0f, 0.0f, 0.0f},
+            {5.0f, 5.0f, 1.0f}
+        }, 0xff899f);
+        //text.render(txt, {float(width / 2) - text_size.x / 2, -float(height / 2)}, 0xff899f);
 
         auto tmp_text = fmt::format("Hej Charlie!");
         auto tmp_size = text.text_size(tmp_text);
