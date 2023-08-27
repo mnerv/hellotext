@@ -1,7 +1,8 @@
-#version 410
+#version 300 es
+precision mediump float;
 
-layout(location = 0, index = 0) out vec4 color;
-layout(location = 0, index = 1) out vec4 color_mask;
+layout(location = 0) out vec4 color;
+//layout(location = 0, index = 1) out vec4 color_mask;
 
 #ifndef RENDER_MODE
 #define RENDER_MODE 0
@@ -22,6 +23,8 @@ void main() {
         _uv.x * (_size.x / u_size.x) + (_offset.x / u_size.x),
         _uv.y * (_size.y / u_size.y) + (_offset.y / u_size.y)
     );
+
+    vec4 color_mask = vec4(0);
 
 #if RENDER_MODE == SUBPIXEL
     vec4 s = texture(u_texture, uv);  // Texture sample

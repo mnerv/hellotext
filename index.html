@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NGN (Engine) is a rendering engine written in C++.">
+  <title>Hello, Text!</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      color: #f7f7f7;
+      background-color: #2b2d3a;
+    }
+    html, body, canvas {
+      width: 100%;
+      height: 100%;
+    }
+  .noselect {
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+    -khtml-user-select: none; /* Konqueror HTML */
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* Internet Explorer/Edge */
+    user-select: none; /* Non-prefixed version, currently
+                                    supported by Chrome and Opera */
+  }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" class="noselect">
+    <noscript>This application requires JavaScript to work.</noscript>
+  </canvas>
+  <script type="text/javascript">
+    Module = {
+      canvas: document.querySelector('#canvas'),
+      onRuntimeInitialized: _ => {
+        setTimeout(_ => {
+          const width  = window.innerWidth;
+          const height = window.innerHeight;
+          Module.setCanvasSize(width, height);
+        }, 16);
+      }
+    }
+    window.addEventListener ("resize", e => {
+        const width  = window.innerWidth;
+        const height = window.innerHeight;
+        Module.setCanvasSize(width, height)
+    }, true);
+  </script>
+  <script async type="text/javascript" src="./hellotext.js"></script>
+</body>
+</html>

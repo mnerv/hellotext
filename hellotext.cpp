@@ -543,7 +543,9 @@ public:
     auto set_num(std::string const& name, std::uint32_t value) -> void {
         glUniform1ui(location(name), value);
     }
-
+    auto set_num(std::string const& name, std::int32_t value) -> void{
+        glUniform1i(location(name), value);
+    }
     auto set_vec2(std::string const& name, glm::vec2 const& vec) -> void {
         glUniform2fv(location(name), 1, glm::value_ptr(vec));
     }
@@ -575,8 +577,9 @@ private:
         if (!is_success) {
             glGetShaderInfoLog(program, LOG_SIZE, nullptr, info_log);
             auto const err_str = fmt::format("shader compile error [{}] - {}",
-                type == GL_VERTEX_SHADER ? "vertex_" : "fragment",
+                type == GL_VERTEX_SHADER ? "vertex" : "fragment",
                 info_log);
+            fmt::print("{}\n", err_str);
             throw std::runtime_error(err_str);
         }
 
@@ -945,7 +948,7 @@ public:
         m_shader->bind();
         m_shader->set_vec2("u_size", {float(m_manager->texture()->width()), float(m_manager->texture()->height())});
         m_manager->texture()->bind();
-        m_shader->set_num("u_texture", 0);
+        m_shader->set_num("u_texture", int(0));
 
         m_tb.resize(m_size * sizeof(gpu));
         m_tb.sub(m_cache.data(), m_size * sizeof(gpu));
@@ -1016,8 +1019,13 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
     // });
     txt::text_renderer text{
         font_manager,
+#ifndef __EMSCRIPTEN__
         "shaders/text.vert",
         "shaders/text.frag"
+#else
+        "shaders/text.webgl.vert",
+        "shaders/text.webgl.frag"
+#endif
     };
 
     double current_time = window->time();
@@ -1089,3 +1097,4 @@ auto main(int argc, char const* argv[]) -> int {
     }
     return 0;
 }
+
