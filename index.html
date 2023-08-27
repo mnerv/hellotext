@@ -44,8 +44,8 @@
       }
     }
     window.addEventListener ("resize", e => {
-        const width  = window.innerWidth;
-        const height = window.innerHeight;
+        const width  = window.innerWidth  * devicePixelRatio;
+        const height = window.innerHeight * devicePixelRatio;
         Module.setCanvasSize(width, height)
     }, true);
   </script>
