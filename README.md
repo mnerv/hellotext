@@ -26,7 +26,7 @@ docker run -it --rm -v "$(pwd):/src" emscripten/emsdk emcmake cmake -S . -Bbuild
 
 Copy assets.
 
-```
+```sh
 mkdir -p build-web/res/fonts
 mkdir -p build-web/shaders
 cp -r res/fonts/Cozette build-web/res/fonts

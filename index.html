@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="NGN (Engine) is a rendering engine written in C++.">
+  <meta name="description" content="Text rendering written in C++ using OpenGL and FreeType!">
   <title>Hello, Text!</title>
   <style>
     html, body {
@@ -37,8 +37,8 @@
       canvas: document.querySelector('#canvas'),
       onRuntimeInitialized: _ => {
         setTimeout(_ => {
-          const width  = window.innerWidth;
-          const height = window.innerHeight;
+          const width  = window.innerWidth  * devicePixelRatio;
+          const height = window.innerHeight * devicePixelRatio;
           Module.setCanvasSize(width, height);
         }, 16);
       }

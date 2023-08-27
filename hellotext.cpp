@@ -137,6 +137,11 @@ public:
             auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window_ptr));
             ptr->m_should_close = true;
         });
+        glfwSetWindowContentScaleCallback(m_native, [](GLFWwindow* window_ptr, float scale_x, float scale_y) {
+            auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window_ptr));
+            ptr->m_content_scale_x = scale_x;
+            ptr->m_content_scale_y = scale_y;
+        });
         //glfwSetKeyCallback(m_native, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
         //    auto ptr = reinterpret_cast<txt::window*>(glfwGetWindowUserPointer(window));
         //});
@@ -158,14 +163,27 @@ public:
 
         glfwGetWindowSize(m_native, &m_width, &m_height);
         glfwGetFramebufferSize(m_native, &m_buffer_width, &m_buffer_height);
+        glfwGetWindowContentScale(m_native, &m_content_scale_x, &m_content_scale_y);
     }
     ~window() {
         glfwDestroyWindow(m_native);
         glfwTerminate();
     }
 
-    auto width() const -> std::int32_t { return m_width; }
-    auto height() const -> std::int32_t { return m_height; }
+    auto width() const -> std::int32_t {
+#ifndef __EMSCRIPTEN__
+        return m_width;
+#else
+        return std::int32_t(float(m_width) / m_content_scale_x);
+#endif
+    }
+    auto height() const -> std::int32_t {
+#ifndef __EMSCRIPTEN__
+        return m_height;
+#else
+        return std::int32_t(float(m_height) / m_content_scale_y);
+#endif
+    }
     auto buffer_width() const -> std::int32_t { return m_buffer_width; }
     auto buffer_height() const -> std::int32_t { return m_buffer_height; }
     auto should_close() const -> bool { return m_should_close; }
@@ -183,6 +201,8 @@ private:
     std::int32_t m_height{0};
     std::int32_t m_buffer_width{0};
     std::int32_t m_buffer_height{0};
+    float        m_content_scale_x{1.0f};
+    float        m_content_scale_y{1.0f};
     bool         m_should_close{false};
 };
 
@@ -1066,7 +1086,10 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
         // }, 0xff899f);
         text.render(txt, {float(width / 2) - text_size.x / 2, -float(height / 2)}, 0xff899f);
 
-        text.render("Hej, Charlie!", {5.0f, 0.0f}, 0x9789ff);
+        auto tmp_text = fmt::format("Hej Charlie!");
+        auto tmp_size = text.text_size(tmp_text);
+        text.render(tmp_text, {5.0f, 0.0f}, 0x9789ff);
+        text.render(fmt::format("Window: {}x{}\nFramebuffer: {}x{}", width, height, window->buffer_width(), window->buffer_height()), {5.0f, -tmp_size.y}, 0xFFFFFF);
 
         txt = "Trying to feel alive";
         text_size = text.text_size(txt);
