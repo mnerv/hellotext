@@ -107,7 +107,6 @@ if (NOT EMSCRIPTEN)
     set(BASE_LIBRARIES
         glfw
         glad::glad
-        freetype
     )
 endif()
 
@@ -120,6 +119,7 @@ target_link_libraries(hellotext
     PRIVATE
     ${PLATFORM_LINK_LIBRARIES}
     ${BASE_LIBRARIES}
+    freetype
     fmt
     glm
     utf8::cpp
