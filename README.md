@@ -2,7 +2,7 @@
 
 Rendering text in OpenGL using FreeType! The hellotext.cpp file includes all the necessary code to load a font and render it using OpenGL. It utilizes FreeType to load the desired font and uses instanced rendering to efficiently render individual characters.
 
-![Show application on Windows 11 with text saying "Hello, World! Hej Charlie!"](./deps/preview.png)
+![Show application on Windows 11 with text saying "Hello, World! Hej Charlie!"](./res/preview.png)
 
 ## Requirements
 

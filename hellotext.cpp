@@ -24,7 +24,7 @@
 
 #include "stb_image.h"
 #include "stb_image_write.h"
-#include "utf8cpp/utf8.h"
+#include "utf8.h"
 
 namespace txt {
 template <typename T, std::size_t N>
@@ -267,7 +267,7 @@ public:
         , m_pixel_type(pixel_type) {
         glGenTextures(1, &m_id);
         glBindTexture(GL_TEXTURE_2D, m_id);
-        glTexImage2D(GL_TEXTURE_2D, 0, internal_format, m_width, m_height, 0, format, pixel_type, data);
+        glTexImage2D(GL_TEXTURE_2D, 0, GLint(internal_format), GLsizei(m_width), GLsizei(m_height), 0, format, pixel_type, data);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
     ~texture() {
@@ -335,7 +335,7 @@ public:
             delete ptr;
         });
         glBindBuffer(GL_ARRAY_BUFFER, *m_id);
-        glBufferData(GL_ARRAY_BUFFER, bytes, data, usage);
+        glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(bytes), data, usage);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         compute_offset();
     }
@@ -346,20 +346,20 @@ public:
         m_size = size;
         m_layout = layout;
         glBindBuffer(GL_ARRAY_BUFFER, *m_id);
-        glBufferData(GL_ARRAY_BUFFER, bytes, data, usage);
+        glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(bytes), data, usage);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         compute_offset();
     }
     auto resize(std::size_t bytes) {
         m_bytes = bytes;
         glBindBuffer(GL_ARRAY_BUFFER, *m_id);
-        glBufferData(GL_ARRAY_BUFFER, bytes, nullptr, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(bytes), nullptr, GL_DYNAMIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
     auto sub(void const* data, std::size_t bytes, std::size_t offset = 0) {
         assert(offset + bytes <= m_bytes);
         glBindBuffer(GL_ARRAY_BUFFER, *m_id);
-        glBufferSubData(GL_ARRAY_BUFFER, offset, bytes, data);
+        glBufferSubData(GL_ARRAY_BUFFER, GLintptr(offset), GLsizeiptr(bytes), data);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
     auto bind() const -> void {
@@ -483,7 +483,7 @@ public:
     auto sub_data(void const* data, std::size_t bytes, std::size_t offset = 0) -> void {
         assert(data != nullptr && (bytes + offset) < m_bytes);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_id);
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, bytes, data);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, GLintptr(offset), GLsizeiptr(bytes), data);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
     auto resize(std::size_t bytes) -> void {
@@ -979,14 +979,14 @@ private:
 };
 }
 
-auto run() -> void {
+auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
     auto window = txt::new_window({
         "Hello, Text!",
         1280, 800
     });
 
     auto font_manager = txt::new_font_manager({
-        .filename = "deps/fonts/Cozette/CozetteVector.ttf",
+        .filename = "res/fonts/Cozette/CozetteVector.ttf",
         .size     = 13,
         .mode     = txt::tf_render_mode::raster
     });
@@ -1055,9 +1055,9 @@ auto run() -> void {
     }
 }
 
-auto main([[maybe_unused]]int argc, [[maybe_unused]]char const* argv[]) -> int {
+auto main(int argc, char const* argv[]) -> int {
     try {
-        run();
+        entry({argv, std::next(argv, argc)});
     } catch (std::exception const& e) {
         fmt::print(stderr, "{}\n", e.what());
         return 1;
