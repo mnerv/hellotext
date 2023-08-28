@@ -87,12 +87,17 @@ auto read_text(std::filesystem::path const& filename) -> std::string {
 #endif
 }
 
-[[maybe_unused]]static auto info_opengl() -> void {
-    fmt::print("OpenGL Info:\n");
-    fmt::print("    Vendor:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VENDOR)));
-    fmt::print("    Renderer: {:s}\n", reinterpret_cast<char const*>(glGetString(GL_RENDERER)));
-    fmt::print("    Version:  {:s}\n", reinterpret_cast<char const*>(glGetString(GL_VERSION)));
-    fmt::print("    Shader:   {:s}\n", reinterpret_cast<char const*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
+[[maybe_unused]]static auto info_opengl() -> std::string {
+    return fmt::format(R"(Graphics API Info:
+Vendor:   {:s}
+Renderer: {:s}
+Version:  {:s}
+Shader:   {:s})",
+        reinterpret_cast<char const*>(glGetString(GL_VENDOR)),
+        reinterpret_cast<char const*>(glGetString(GL_RENDERER)),
+        reinterpret_cast<char const*>(glGetString(GL_VERSION)),
+        reinterpret_cast<char const*>(glGetString(GL_SHADING_LANGUAGE_VERSION))
+    );
 }
 
 struct window_props {
@@ -119,7 +124,7 @@ public:
             throw std::runtime_error(fmt::format("Failed to initialize GLAD\n"));
         }
 #endif
-        info_opengl();
+        fmt::print("{}\n", info_opengl());
 
         // Setup event
         glfwSetWindowUserPointer(m_native, this);
@@ -906,6 +911,7 @@ public:
         std::u32string str{};
         utf8::utf8to32(std::begin(txt), std::end(txt), std::back_inserter(str));
         glm::vec2 position{0.0f};
+        glm::vec2 max{0.0f};
         std::int64_t advance_y = 0;
         for (auto const& code : str) {
             if (code == '\n') {
@@ -916,9 +922,12 @@ public:
             auto const& tf = m_manager->at(code);
             position.x += float(tf.advance.x >> 6);
             advance_y = tf.advance.y;
+
+            if (position.x > max.x) max.x = position.x;
         }
         position.y += float(advance_y >> 6);
-        return position;
+        if (position.y > max.y) max.y = position.y;
+        return max;
     }
     auto begin() -> void {
         m_size = 0;
@@ -1051,6 +1060,8 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
     double current_time = window->time();
     double previous_time = window->time();
 
+    auto const info = txt::info_opengl();
+
     std::size_t instances = 0;
     loop = [&] {
         auto const width  = window->width();
@@ -1094,6 +1105,9 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
         txt = "Trying to feel alive";
         text_size = text.text_size(txt);
         text.render(txt, {5.0f, -float(height) + text_size.y + 5.0f}, 0xa0cfd8);
+
+        tmp_size = text.text_size(info);
+        text.render(info, {5.0f, -float(height) + tmp_size.y + text_size.y + 5.0f}, 0xA0A0A0);
 
         auto const instance_count_text = fmt::format("{} instances", instances);
         text.render(instance_count_text, {float(width) - text.text_size(instance_count_text).x - 5.0f, -fps_text_size.y});
