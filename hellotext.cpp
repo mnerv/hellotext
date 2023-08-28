@@ -1080,9 +1080,9 @@ auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
         auto txt = "Hello, World!";
         auto text_size = text.text_size(txt);
         text.render(txt, txt::transform{
-            {float(width / 2) - text_size.x / 2 * 5, -float(height / 2), 0.0f},
+            {float(width / 2) - text_size.x / 2 * 3, -float(height / 2), 0.0f},
             {0.0f, 0.0f, 0.0f},
-            {5.0f, 5.0f, 1.0f}
+            {3.0f, 3.0f, 1.0f}
         }, 0xff899f);
         //text.render(txt, {float(width / 2) - text_size.x / 2, -float(height / 2)}, 0xff899f);
 
