@@ -1030,7 +1030,7 @@ static std::function<void()> loop = nullptr;
 auto main_loop() -> void { loop(); }
 #endif
 
-auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
+static auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void {
     auto window = txt::new_window({
         "Hello, Text!",
         1280, 800
@@ -1129,7 +1129,7 @@ auto main(int argc, char const* argv[]) -> int {
     try {
         entry({argv, std::next(argv, argc)});
     } catch (std::exception const& e) {
-        fmt::print(stderr, "{}\n", e.what());
+        fmt::print(stderr, "Error at entry: {}\n", e.what());
         return 1;
     }
     return 0;

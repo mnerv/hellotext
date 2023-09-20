@@ -21,7 +21,8 @@ cmake -S . -Bbuild
 Generate build system using `emscripten/emsdk` docker image.
 
 ```sh
-docker run -it --rm -v "$(pwd):/src" emscripten/emsdk emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-sUSE_GLFW=3 -sUSE_WEBGL2=1 -sFULL_ES3=1 -fexceptions --preload-file ./res/fonts/Cozette --preload-file ./shaders"
+docker run -it --rm -v "$(pwd):/src" emscripten/emsdk emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="--preload-file ./res/fonts/Cozette --preload-file ./shaders"
+
 ```
 
 Copy assets.

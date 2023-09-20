@@ -5,6 +5,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)         # Generate compile_commands.json f
 
 include(FetchContent)
 if (NOT EMSCRIPTEN)
+    option(GLFW_BUILD_EXAMPLES OFF)
+    option(GLFW_BUILD_TESTS OFF)
+    option(GLFW_BUILD_DOCS OFF)
+    option(GLFW_INSTALL OFF)
     FetchContent_Declare(
         glfw
         GIT_REPOSITORY https://github.com/glfw/glfw.git
@@ -50,6 +54,16 @@ FetchContent_Declare(
 list(APPEND FETCH_CONTENTS stb)
 FetchContent_MakeAvailable(${FETCH_CONTENTS})
 
+# Group dependencies in Visual Studio and Xcode
+if (CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR MATCHES "Xcode")
+    set_target_properties(fmt PROPERTIES FOLDER deps)
+    set_target_properties(freetype PROPERTIES FOLDER deps)
+    set_target_properties(glad PROPERTIES FOLDER deps)
+    set_target_properties(stb PROPERTIES FOLDER deps)
+    set_target_properties(update_mappings PROPERTIES FOLDER "deps/GLFW3")
+    set_target_properties(glfw PROPERTIES FOLDER "deps/GLFW3")
+endif()
+
 if (APPLE)
     set(PLATFORM_LINK_LIBRARIES
         "-framework Cocoa"
@@ -57,7 +71,7 @@ if (APPLE)
         "-framework CoreVideo"
         "-framework OpenGL"
     )
-elseif (UNIX AND NOT APPLE)  # Linux, BSD, Solaris, Minix
+elseif (UNIX AND NOT APPLE AND NOT EMSCRIPTEN)  # Linux, BSD, Solaris, Minix
     set(PLATFORM_LINK_LIBRARIES
         "dl"
         "m"
@@ -66,9 +80,20 @@ elseif (UNIX AND NOT APPLE)  # Linux, BSD, Solaris, Minix
     )
 elseif (WIN32)
     set(PLATFORM_LINK_LIBRARIES "OpenGL32.lib")
-endif()
-if (NOT DEFINED PLATFORM_LINK_LIBRARIES)
-    message(FATAL_ERROR "PLATFORM_LINK_LIRBARIES not defined!")
+elseif (EMSCRIPTEN)
+    # Emscripten build
+    add_compile_options(
+        "-pthread"
+        "-fexceptions"
+    )
+    add_link_options(
+        "-sUSE_GLFW=3"
+        "-sUSE_WEBGL2=1"
+        "-sFULL_ES3=1"
+        "-fexceptions"
+    )
+else()
+    message(FATAL_ERROR "Unsupported platform!")
 endif()
 
 # Compiler specific options
