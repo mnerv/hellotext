@@ -1100,7 +1100,7 @@ static auto entry([[maybe_unused]]std::vector<std::string> const& args) -> void 
         auto tmp_text = fmt::format("Hej Charlie!");
         auto tmp_size = text.text_size(tmp_text);
         text.render(tmp_text, {5.0f, 0.0f}, 0x9789ff);
-        text.render(fmt::format("Window: {}x{}\nFramebuffer: {}x{}", width, height, window->buffer_width(), window->buffer_height()), {5.0f, -tmp_size.y}, 0xFFFFFF);
+        text.render(fmt::format("Window: {}x{}\nFramebuffer: {}x{}\nTime: {:.3f} s", width, height, window->buffer_width(), window->buffer_height(), window->time()), {5.0f, -tmp_size.y}, 0xFFFFFF);
 
         txt = "Trying to feel alive";
         text_size = text.text_size(txt);

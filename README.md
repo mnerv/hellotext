@@ -2,7 +2,7 @@
 
 Rendering text in OpenGL using FreeType! The hellotext.cpp file includes all the necessary code to load a font and render it using OpenGL. It utilizes FreeType to load the desired font and uses instanced rendering to efficiently render individual characters.
 
-![Show application on Windows 11 with text saying "Hello, World! Hej Charlie!"](./res/preview.png)
+![Show application with big text saying "Hello, World!"](./res/preview.png)
 
 ## Requirements
 
@@ -22,7 +22,6 @@ Generate build system using `emscripten/emsdk` docker image.
 
 ```sh
 docker run -it --rm -v "$(pwd):/src" emscripten/emsdk emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="--preload-file ./res/fonts/Cozette --preload-file ./shaders"
-
 ```
 
 Copy assets.
