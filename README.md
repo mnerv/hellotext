@@ -21,23 +21,7 @@ cmake -S . -Bbuild
 Generate build system using `emscripten/emsdk` docker image.
 
 ```sh
-docker run -it --rm -v "$(pwd):/src" emscripten/emsdk emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="--preload-file ./res/fonts/Cozette --preload-file ./shaders"
-```
-
-Copy assets.
-
-```sh
-mkdir -p build-web/res/fonts
-mkdir -p build-web/shaders
-cp -r res/fonts build-web/res
-cp ./shaders/*.webgl.* build-web/shaders
-cp index.html ./build-web
-```
-
-Build using docker
-
-```sh
-docker run -it --rm -v "$(pwd):/src" emscripten/emsdk cmake --build build-web -j
+docker run -it --rm -v "$(pwd):/src" emscripten/emsdk ./build_em.sh
 ```
 
 ## Text Rendering
@@ -48,3 +32,4 @@ The application uses FreeType 2 to read most font file types, `ttf` (**TrueTypeF
 
   - [Learn OpenGL - Text Rendering](https://learnopengl.com/In-Practice/Text-Rendering)
   - [mrandri19/freetype-opengl-experiments](https://github.com/mrandri19/freetype-opengl-experiments)
+  - [Family, type family, or font family - Google Fonts](https://fonts.google.com/knowledge/glossary/family_or_type_family_or_font_family)

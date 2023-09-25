@@ -35,21 +35,21 @@ FetchContent_Declare(
 )
 list(APPEND FETCH_CONTENTS freetype)
 FetchContent_Declare(
-  glm
-  GIT_REPOSITORY https://github.com/g-truc/glm.git
-  GIT_TAG        0.9.9.8
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG        0.9.9.8
 )
 list(APPEND FETCH_CONTENTS glm)
 FetchContent_Declare(
-  utf8cpp
-  GIT_REPOSITORY https://github.com/nemtrif/utfcpp.git
-  GIT_TAG        v3.2.4
+    utf8cpp
+    GIT_REPOSITORY https://github.com/nemtrif/utfcpp.git
+    GIT_TAG        v3.2.4
 )
 list(APPEND FETCH_CONTENTS utf8cpp)
 FetchContent_Declare(
-  stb
-  GIT_REPOSITORY https://github.com/mononerv/stb.git
-  GIT_TAG        698c6fb9889c71494b49c9187d249af5fc87b211
+    stb
+    GIT_REPOSITORY https://github.com/mononerv/stb.git
+    GIT_TAG        698c6fb9889c71494b49c9187d249af5fc87b211
 )
 list(APPEND FETCH_CONTENTS stb)
 FetchContent_MakeAvailable(${FETCH_CONTENTS})
@@ -80,20 +80,21 @@ elseif (UNIX AND NOT APPLE AND NOT EMSCRIPTEN)  # Linux, BSD, Solaris, Minix
     )
 elseif (WIN32)
     set(PLATFORM_LINK_LIBRARIES "OpenGL32.lib")
-elseif (EMSCRIPTEN)
+elseif(EMSCRIPTEN)
     # Emscripten build
-    add_compile_options(
-        "-pthread"
-        "-fexceptions"
+    add_compile_definitions(
+        "GL_GLEXT_PROTOTYPES"
+        "GL3_PROTOTYPES"
     )
+    add_compile_options("-pthread" "-fexceptions")
     add_link_options(
-        "-sUSE_GLFW=3"
+        "-sLEGACY_GL_EMULATION=0"
         "-sUSE_WEBGL2=1"
         "-sFULL_ES3=1"
         "-fexceptions"
     )
 else()
-    message(FATAL_ERROR "Unsupported platform!")
+    message(FATAL_ERROR "Unkown platform!")
 endif()
 
 # Compiler specific options
@@ -135,8 +136,24 @@ if (NOT EMSCRIPTEN)
     )
 endif()
 
-set(SOURCE_FILES hellotext.cpp)
-add_executable(hellotext ${SOURCE_FILES})
+set(HEADERS
+    txt/buffer.hpp
+    txt/descriptor.hpp
+    txt/fonts.hpp
+    txt/image.hpp
+    txt/renderer.cpp
+    txt/window.hpp
+)
+set(SOURCES
+    txt/buffer.cpp
+    txt/descriptor.cpp
+    txt/fonts.cpp
+    txt/image.cpp
+    txt/renderer.cpp
+    txt/window.cpp
+    hellotext.cpp
+)
+add_executable(hellotext ${HEADERS} ${SOURCES})
 target_include_directories(hellotext PRIVATE ${PROJECT_SOURCE_DIR})
 target_compile_features(hellotext PRIVATE cxx_std_20)
 target_compile_options(hellotext PRIVATE ${BASE_OPTIONS})
@@ -150,4 +167,4 @@ target_link_libraries(hellotext
     utf8::cpp
     stb::stb
 )
-source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" FILES ${SOURCE_FILES})
+source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" FILES ${HEADERS} ${SOURCES})
