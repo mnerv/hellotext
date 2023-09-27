@@ -23,7 +23,7 @@ vertex_buffer::vertex_buffer(void const* data, std::size_t const& bytes, txt::ty
     , m_usage(usage) {
     glGenBuffers(1, &m_id);
     glBindBuffer(GL_ARRAY_BUFFER, m_id);
-    glBufferData(GL_ARRAY_BUFFER, m_bytes, data, gl_usage(m_usage));
+    glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(m_bytes), data, gl_usage(m_usage));
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 vertex_buffer::~vertex_buffer() {
@@ -55,7 +55,7 @@ index_buffer::index_buffer(void const* data, std::size_t const& bytes, std::size
     , m_usage(usage) {
     glGenBuffers(1, &m_id);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_id);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_bytes, data, gl_usage(m_usage));
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr(m_bytes), data, gl_usage(m_usage));
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 index_buffer::~index_buffer() {
