@@ -17,8 +17,9 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
         txt::clear_color(0x000000);
         txt::clear();
 
-        txt::rect({0.0f, 0.0f}, {1.0f, 1.0f}, 0.0f, {1.0f, 0.0f, 1.0f, 1.0f});
-        txt::rect({0.1f, 0.0f}, {1.0f, 1.0f}, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f});
+        txt::rect({float(window->width()) / 2.0f, float(window->height()) - 200.0f}, {100.0f, 100.0f}, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f});
+        txt::rect({float(window->width()) / 2.0f, float(window->height()) - 350.0f}, {100.0f, 100.0f}, 0.0f, {0.0f, 1.0f, 0.0f, 1.0f});
+        txt::rect({float(window->width()) / 2.0f, float(window->height()) - 500.0f}, {100.0f, 100.0f}, 0.0f, {0.0f, 0.0f, 1.0f, 1.0f});
         txt::end_frame();
 
         window->swap();

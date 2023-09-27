@@ -108,6 +108,16 @@ auto window::setup_native() -> void {
         auto ptr = reinterpret_cast<window*>(glfwGetWindowUserPointer(window_ptr));
         ptr->m_should_close = true;
     });
+    glfwSetWindowSizeCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t width, std::int32_t height) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        ptr->m_width  = width;
+        ptr->m_height = height;
+    });
+    glfwSetFramebufferSizeCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t width, std::int32_t height) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        ptr->m_buffer_width  = width;
+        ptr->m_buffer_height = height;
+    });
 
     std::int32_t width, height;
     glfwGetWindowSize(static_cast<GLFWwindow*>(m_native), &width, &height);

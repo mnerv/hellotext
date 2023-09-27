@@ -126,6 +126,7 @@ else()
         "/WX"
         "/utf-8"
         "/Zc:__cplusplus"
+        "/wd4201"
         #"/fsanitize=address"  # Doesn't work without Visual Studio
     )
 endif()

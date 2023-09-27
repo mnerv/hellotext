@@ -2,6 +2,9 @@
 #include <stdexcept>
 #include "fmt/format.h"
 
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
+
 namespace txt {
 static renderer::local_t s_instance = nullptr;
 [[maybe_unused]]static constexpr float QUAD_VERTICES[]{
@@ -55,7 +58,14 @@ auto renderer::end() -> void {
     m_rects_vb->sub(m_gpu_rects.data(), instance_bytes, 0);
     m_rects_vb->unbind();
 
+    m_view = glm::lookAt(glm::vec3{0.0, 0.0, 1.0}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
+    m_projection = glm::ortho(0.0f, float(m_window->width()), 0.0f, float(m_window->height()));
+
     m_shader->bind();
+    m_shader->upload_mat4("u_model", m_model);
+    m_shader->upload_mat4("u_view", m_view);
+    m_shader->upload_mat4("u_projection", m_projection);
+
     m_rects->bind();
     m_rect_ib->bind();
     glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_rect_ib->size()), gl_type(m_rect_ib->type()), nullptr, GLsizei(m_gpu_rects_count));
@@ -77,17 +87,13 @@ auto renderer::clear(GLenum bitmask) -> void {
 }
 
 auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color) -> void {
-    (void)position;
-    (void)size;
-    (void)rotation;
-    (void)color;
     gpu_rect rect{
         color,
-        glm::vec3{position, 0.0f},
-        glm::vec3{size, 1.0f},
-        glm::vec3{0.0f, 0.0f, rotation},
-        glm::vec2{0.0f, 0.0f},
-        glm::vec2{1.0f, 1.0f},
+        {position.x, position.y, 0.0f},
+        {size, 1.0f},
+        {0.0f, 0.0f, rotation},
+        {0.0f, 0.0f},
+        {1.0f, 1.0f},
     };
 
     if ( m_gpu_rects_count < m_gpu_rects.size()) {

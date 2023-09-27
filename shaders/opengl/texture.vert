@@ -3,9 +3,9 @@ layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec2 a_uv;
 
 layout(location = 2) in vec4 a_color;
-layout(location = 3) in vec3 a_transform_position;
-layout(location = 4) in vec3 a_transform_scale;
-layout(location = 5) in vec3 a_transform_rotation;
+layout(location = 3) in vec3 a_tp;
+layout(location = 4) in vec3 a_ts;
+layout(location = 5) in vec3 a_tr;
 layout(location = 6) in vec2 a_uv_offset;
 layout(location = 7) in vec2 a_uv_size;
 layout(location = 8) in vec4 a_round;
@@ -27,5 +27,19 @@ void main() {
     _uv_size   = a_uv_size;
     _round     = a_round;
 
-    gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
+    mat4 model = mat4(1.0);
+    model = transpose(mat4(
+        vec4(1.0, 0.0, 0.0, a_tp.x),
+        vec4(0.0, 1.0, 0.0, a_tp.y),
+        vec4(0.0, 0.0, 1.0, a_tp.z),
+        vec4(0.0, 0.0, 0.0, 1.0)
+    ));
+    model *= transpose(mat4(
+        vec4(a_ts.x, 0.0, 0.0, 0.0),
+        vec4(0.0, a_ts.y, 0.0, 0.0),
+        vec4(0.0, 0.0, a_ts.z, 0.0),
+        vec4(0.0, 0.0, 0.0, 1.0)
+    ));
+
+    gl_Position = u_projection * u_view * u_model * model * vec4(a_position, 1.0);
 }

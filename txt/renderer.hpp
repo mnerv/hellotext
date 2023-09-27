@@ -63,6 +63,11 @@ private:
     index_buffer_ref_t    m_rect_ib;
     vertex_buffer_ref_t   m_rects_vb;
     attribute_descriptor_ref_t m_rects;
+
+private:
+    glm::mat4 m_model{1.0f};
+    glm::mat4 m_view{};
+    glm::mat4 m_projection{};
 };
 } // namespace txt
 

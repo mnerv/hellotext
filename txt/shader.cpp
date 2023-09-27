@@ -1,8 +1,10 @@
 #include "shader.hpp"
 #include <stdexcept>
-#include "fmt/format.h"
-
 #include <vector>
+
+#include "fmt/format.h"
+#include "glm/gtc/type_ptr.hpp"
+
 #ifdef __EMSCRIPTEN__
 #include "GL/gl.h"
 #else
@@ -31,6 +33,72 @@ auto shader::unbind() -> void {
 }
 auto shader::id() const -> std::uint32_t {
     return m_id;
+}
+
+
+auto shader::upload_num([[maybe_unused]]std::string const& name, [[maybe_unused]]std::uint32_t const& value) -> void {
+#ifndef __EMSCRIPTEN__
+    glUniform1ui(uniform_location(name), value);
+#endif
+}
+auto shader::upload_num(std::string const& name, std::int32_t const& value) -> void {
+    glUniform1i(uniform_location(name), value);
+}
+auto shader::upload_num(std::string const& name, float const& value) -> void {
+    glUniform1f(uniform_location(name), value);
+}
+
+auto shader::upload_nums([[maybe_unused]]std::string const& name, [[maybe_unused]]std::int32_t const& count, [[maybe_unused]]std::uint32_t const* values) -> void {
+#ifndef __EMSCRIPTEN__
+    glUniform1uiv(uniform_location(name), count, values);
+#endif
+}
+auto shader::upload_nums(std::string const& name, std::int32_t const& count, float const* values) -> void {
+    glUniform1fv(uniform_location(name), count, values);
+}
+
+auto shader::upload_vec2(std::string const& name, glm::vec2 const& value) -> void {
+    glUniform2fv(uniform_location(name), 1, glm::value_ptr(value));
+}
+auto shader::upload_vec3(std::string const& name, glm::vec3 const& value) -> void {
+    glUniform3fv(uniform_location(name), 1, glm::value_ptr(value));
+}
+auto shader::upload_vec4(std::string const& name, glm::vec4 const& value) -> void {
+    glUniform4fv(uniform_location(name), 1, glm::value_ptr(value));
+}
+
+auto shader::upload_vec2s(std::string const& name, std::int32_t const& count, glm::vec2 const* values) -> void {
+    glUniform2fv(uniform_location(name), count, reinterpret_cast<float const*>(values));
+}
+auto shader::upload_vec3s(std::string const& name, std::int32_t const& count, glm::vec3 const* values) -> void {
+    glUniform3fv(uniform_location(name), count, reinterpret_cast<float const*>(values));
+}
+auto shader::upload_vec4s(std::string const& name, std::int32_t const& count, glm::vec4 const* values) -> void {
+    glUniform4fv(uniform_location(name), count, reinterpret_cast<float const*>(values));
+}
+
+auto shader::upload_mat2(std::string const& name, glm::mat2 const& value, bool const& transpose) -> void {
+    glUniformMatrix2fv(uniform_location(name), 1, (transpose ? GL_TRUE : GL_FALSE), glm::value_ptr(value));
+}
+auto shader::upload_mat3(std::string const& name, glm::mat3 const& value, bool const& transpose) -> void {
+    glUniformMatrix3fv(uniform_location(name), 1, (transpose ? GL_TRUE : GL_FALSE), glm::value_ptr(value));
+}
+auto shader::upload_mat4(std::string const& name, glm::mat4 const& value, bool const& transpose) -> void {
+    glUniformMatrix4fv(uniform_location(name), 1, (transpose ? GL_TRUE : GL_FALSE), glm::value_ptr(value));
+}
+
+auto shader::upload_mat2s(std::string const& name, std::int32_t const& count, glm::mat2 const* values, bool const& transpose) -> void {
+    glUniformMatrix2fv(uniform_location(name), count, (transpose ? GL_TRUE : GL_FALSE), reinterpret_cast<float const*>(values));
+}
+auto shader::upload_mat3s(std::string const& name, std::int32_t const& count, glm::mat3 const* values, bool const& transpose) -> void {
+    glUniformMatrix3fv(uniform_location(name), count, (transpose ? GL_TRUE : GL_FALSE), reinterpret_cast<float const*>(values));
+}
+auto shader::upload_mat4s(std::string const& name, std::int32_t const& count, glm::mat4 const* values, bool const& transpose) -> void {
+    glUniformMatrix4fv(uniform_location(name), count, (transpose ? GL_TRUE : GL_FALSE), reinterpret_cast<float const*>(values));
+}
+
+auto shader::uniform_location(std::string const& name) const -> std::int32_t {
+    return glGetUniformLocation(m_id, name.c_str());
 }
 
 auto shader::compile(std::uint32_t const& type, char const* source) -> std::uint32_t {
