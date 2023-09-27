@@ -100,7 +100,7 @@ auto window::setup_native() -> void {
         throw std::runtime_error(fmt::format("Failed to initialize GLFW\n"));
     setup_opengl();
 
-    m_native = glfwCreateWindow(m_width, m_height, m_title.c_str(), nullptr, nullptr);
+    m_native = glfwCreateWindow(std::int32_t(m_width), std::int32_t(m_height), m_title.c_str(), nullptr, nullptr);
     if (m_native == nullptr)
         throw std::runtime_error(fmt::format("Failed to create GLFW window\n"));
     glfwMakeContextCurrent(static_cast<GLFWwindow*>(m_native));
@@ -115,22 +115,22 @@ auto window::setup_native() -> void {
     });
     glfwSetWindowSizeCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t width, std::int32_t height) {
         auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
-        ptr->m_width  = width;
-        ptr->m_height = height;
+        ptr->m_width  = std::uint32_t(width);
+        ptr->m_height = std::uint32_t(height);
     });
     glfwSetFramebufferSizeCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t width, std::int32_t height) {
         auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
-        ptr->m_buffer_width  = width;
-        ptr->m_buffer_height = height;
+        ptr->m_buffer_width  = std::uint32_t(width);
+        ptr->m_buffer_height = std::uint32_t(height);
     });
 
     std::int32_t width, height;
     glfwGetWindowSize(static_cast<GLFWwindow*>(m_native), &width, &height);
-    m_width = width;
-    m_height = height;
+    m_width  = std::uint32_t(width);
+    m_height = std::uint32_t(height);
     glfwGetFramebufferSize(static_cast<GLFWwindow*>(m_native), &width, &height);
-    m_buffer_width = width;
-    m_buffer_height = height;
+    m_buffer_width  = std::uint32_t(width);
+    m_buffer_height = std::uint32_t(height);
 }
 auto window::clean_native() -> void {
     glfwDestroyWindow(static_cast<GLFWwindow*>(m_native));
