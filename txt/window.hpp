@@ -5,6 +5,7 @@
 #include <functional>
 #include <string>
 #include <filesystem>
+#include <chrono>
 
 #include "glm/vec2.hpp"
 #include "utility.hpp"
@@ -33,6 +34,7 @@ public:
     auto buffer_height() const noexcept -> std::uint32_t;
     auto should_close() const noexcept -> bool;
 
+    auto time() const -> double;
     auto close() -> void;
     auto poll() -> void;
     auto swap() -> void;

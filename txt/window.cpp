@@ -65,6 +65,11 @@ auto window::buffer_width() const noexcept -> std::uint32_t { return m_buffer_wi
 auto window::buffer_height() const noexcept -> std::uint32_t { return m_buffer_height; }
 auto window::should_close() const noexcept -> bool { return m_should_close; }
 
+auto window::time() const -> double {
+    auto const t = std::chrono::system_clock::now();
+    auto const s = std::chrono::duration<double>(t.time_since_epoch());
+    return s.count();
+}
 auto window::close() -> void {
     m_should_close = true;
 }

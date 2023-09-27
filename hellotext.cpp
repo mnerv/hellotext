@@ -17,9 +17,15 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
         txt::clear_color(0x000000);
         txt::clear();
 
-        txt::rect({float(window->width()) / 2.0f, float(window->height()) - 200.0f}, {100.0f, 100.0f}, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f});
-        txt::rect({float(window->width()) / 2.0f, float(window->height()) - 350.0f}, {100.0f, 100.0f}, 0.0f, {0.0f, 1.0f, 0.0f, 1.0f});
-        txt::rect({float(window->width()) / 2.0f, float(window->height()) - 500.0f}, {100.0f, 100.0f}, 0.0f, {0.0f, 0.0f, 1.0f, 1.0f});
+        auto const max = 100.0f;
+        for (float i = 0.0f; i < max; ++i) {
+            auto const radius = 500.0f;
+            auto const t = window->time();
+            auto const x = radius * std::cos((i + t) * (2.0f * 3.14f) / max) + float(window->width()) / 2.0f;
+            auto const y = radius * std::sin((i + t) * (2.0f * 3.14f) / max) + float(window->height()) / 2.0f;
+            txt::rect({x, y}, {10.0f, 10.0f}, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f});
+        }
+
         txt::end_frame();
 
         window->swap();
