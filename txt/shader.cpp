@@ -10,7 +10,30 @@
 #endif
 
 namespace txt {
-auto shader::shader_compile(std::uint32_t const& type, char const* source) -> std::uint32_t {
+auto make_shader(std::string const& vs_src, std::string const& fs_src) -> shader_ref_t {
+    return make_ref<shader>(vs_src, fs_src);
+}
+
+shader::shader(std::string const& vs_src, std::string const& fs_src) {
+    auto vs = compile(GL_VERTEX_SHADER, vs_src.c_str());
+    auto fs = compile(GL_FRAGMENT_SHADER, fs_src.c_str());
+    m_id = link(vs, fs);
+}
+shader::~shader() {
+    glDeleteProgram(m_id);
+}
+
+auto shader::bind() -> void {
+    glUseProgram(m_id);
+}
+auto shader::unbind() -> void {
+    glUseProgram(0);
+}
+auto shader::id() const -> std::uint32_t {
+    return m_id;
+}
+
+auto shader::compile(std::uint32_t const& type, char const* source) -> std::uint32_t {
     std::uint32_t program = glCreateShader(type);
     glShaderSource(program, 1, &source, nullptr);
     glCompileShader(program);
@@ -31,7 +54,7 @@ auto shader::shader_compile(std::uint32_t const& type, char const* source) -> st
     return program;
 }
 
-auto shader::shader_link(std::uint32_t const& vs, std::uint32_t const& fs) -> std::uint32_t {
+auto shader::link(std::uint32_t const& vs, std::uint32_t const& fs) -> std::uint32_t {
     std::uint32_t program = glCreateProgram();
     glAttachShader(program, vs);
     glAttachShader(program, fs);

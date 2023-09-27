@@ -3,9 +3,10 @@
 #include <memory>
 #include <vector>
 
+#include "utility.hpp"
 #include "window.hpp"
 #include "buffer.hpp"
-#include "descriptor.hpp"
+#include "shader.hpp"
 
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
@@ -20,11 +21,14 @@
 
 namespace txt {
 // Rectangle GPU instance memory
-struct rectangle {
-    glm::vec4 color;
-    glm::mat4 model;
-    glm::mat3 uv{1.0f};
-    glm::vec4 round{0.0f};
+struct gpu_rect {
+    glm::vec4 color{0.0f};
+    glm::vec3 position{0.0f};
+    glm::vec3 scale{1.0f};
+    glm::vec3 rotation{0.0f};
+    glm::vec2 uv_offset{0.0f};
+    glm::vec2 uv_size{1.0f};
+    // glm::vec4 round;
 };
 
 auto begin_frame() -> void;
@@ -52,13 +56,13 @@ public:
     auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color) -> void;
 
 private:
-    window::ref_t          m_window;
-    std::vector<rectangle> m_gpu_rects{};
-    std::size_t            m_gpu_rects_count{0};
-    buffer m_rect_ib{};
-    buffer m_rect_vb{};
-    buffer m_rect_ivb{};
-    layout_descriptor m_rect_descriptor{};
+    window::ref_t         m_window;
+    std::vector<gpu_rect> m_gpu_rects{};
+    std::size_t           m_gpu_rects_count{0};
+    shader_ref_t          m_shader{nullptr};
+    index_buffer_ref_t    m_rect_ib;
+    vertex_buffer_ref_t   m_rects_vb;
+    attribute_descriptor_ref_t m_rects;
 };
 } // namespace txt
 

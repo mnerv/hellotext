@@ -30,7 +30,7 @@ auto read_text(std::filesystem::path const& filename) -> std::string {
 }
 
 auto window::make(window::props const& props) -> window::ref_t {
-    return std::make_shared<window>(props);
+    return make_ref<window>(props);
 }
 
 [[nodiscard]]static auto info_opengl() -> std::string {
@@ -108,6 +108,14 @@ auto window::setup_native() -> void {
         auto ptr = reinterpret_cast<window*>(glfwGetWindowUserPointer(window_ptr));
         ptr->m_should_close = true;
     });
+
+    std::int32_t width, height;
+    glfwGetWindowSize(static_cast<GLFWwindow*>(m_native), &width, &height);
+    m_width = width;
+    m_height = height;
+    glfwGetFramebufferSize(static_cast<GLFWwindow*>(m_native), &width, &height);
+    m_buffer_width = width;
+    m_buffer_height = height;
 }
 auto window::clean_native() -> void {
     glfwDestroyWindow(static_cast<GLFWwindow*>(m_native));

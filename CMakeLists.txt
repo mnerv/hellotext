@@ -138,18 +138,19 @@ endif()
 
 set(HEADERS
     txt/buffer.hpp
-    txt/descriptor.hpp
     txt/fonts.hpp
     txt/image.hpp
-    txt/renderer.cpp
+    txt/renderer.hpp
+    txt/shader.hpp
+    txt/utility.hpp
     txt/window.hpp
 )
 set(SOURCES
     txt/buffer.cpp
-    txt/descriptor.cpp
     txt/fonts.cpp
     txt/image.cpp
     txt/renderer.cpp
+    txt/shader.cpp
     txt/window.cpp
     hellotext.cpp
 )

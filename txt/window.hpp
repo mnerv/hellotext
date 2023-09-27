@@ -7,6 +7,7 @@
 #include <filesystem>
 
 #include "glm/vec2.hpp"
+#include "utility.hpp"
 
 namespace txt {
 auto read_text(std::filesystem::path const& filename) -> std::string;
@@ -18,7 +19,7 @@ public:
         std::uint32_t     width  = 960;
         std::uint32_t     height = 600;
     };
-    using ref_t = std::shared_ptr<window>;
+    using ref_t = ref<window>;
 
     static auto make(window::props const& props) -> window::ref_t;
 
