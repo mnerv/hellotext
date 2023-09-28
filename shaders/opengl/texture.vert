@@ -16,9 +16,9 @@ out vec2 _uv_offset;
 out vec2 _uv_size;
 out vec4 _round;
 
-uniform mat4 u_model       = mat4(1.0);
-uniform mat4 u_view        = mat4(1.0);
-uniform mat4 u_projection  = mat4(1.0);
+uniform mat4 u_model      = mat4(1.0);
+uniform mat4 u_view       = mat4(1.0);
+uniform mat4 u_projection = mat4(1.0);
 
 void main() {
     _uv        = a_uv;

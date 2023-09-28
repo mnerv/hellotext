@@ -95,7 +95,7 @@ private:
 auto native_write_png(std::string_view const& filename, void const* data, std::size_t width, std::size_t height, std::size_t channels, std::size_t stride) -> void;
 
 using image_rgb  = image<std::uint8_t>;
-using image_rgba  = image<std::uint8_t, 4>;
+using image_rgba = image<std::uint8_t, 4>;
 
 template <typename T, std::size_t C>
 auto write_png(std::string_view const& filename, image<T, C> const& img) -> void {

@@ -35,7 +35,7 @@ auto begin_frame() -> void;
 auto end_frame() -> void;
 auto viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void;
 auto clear_color(std::uint32_t color, float alpha = 1.0f) -> void;
-auto clear(GLenum bitmask = GL_COLOR_BUFFER_BIT) -> void;
+auto clear(GLenum bitmask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) -> void;
 auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color = glm::vec4{1.0f}) -> void;
 
 class renderer {

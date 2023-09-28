@@ -49,6 +49,8 @@ auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotatio
 
 auto renderer::begin() -> void {
     m_gpu_rects_count = 0;
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 }
 
 auto renderer::end() -> void {
@@ -58,8 +60,8 @@ auto renderer::end() -> void {
     m_rects_vb->sub(m_gpu_rects.data(), instance_bytes, 0);
     m_rects_vb->unbind();
 
-    m_view = glm::lookAt(glm::vec3{0.0, 0.0, 1.0}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
-    m_projection = glm::ortho(0.0f, float(m_window->width()), 0.0f, float(m_window->height()));
+    m_view = glm::lookAt(glm::vec3{0.0, 0.0, 255.0f}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
+    m_projection = glm::ortho(0.0f, float(m_window->width()), 0.0f, float(m_window->height()), 1.0f, 256.0f);
 
     m_shader->bind();
     m_shader->upload_mat4("u_model", m_model);
