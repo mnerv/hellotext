@@ -20,9 +20,6 @@ public:
         std::uint32_t     width  = 960;
         std::uint32_t     height = 600;
     };
-    using ref_t = ref<window>;
-
-    static auto make(window::props const& props) -> window::ref_t;
 
 public:
     window(window::props const& props);
@@ -55,8 +52,11 @@ private:
     void* m_native{nullptr};
 };
 
+using window_ref_t = ref<window>;
+auto make_window(window::props const& props) -> window_ref_t;
+
 using loop_t = std::function<void()>;
-auto loop(window::ref_t window, loop_t fn) -> void;
+auto loop(window_ref_t window, loop_t fn) -> void;
 } // namespace txt
 
 #endif  // TXT_WINDOW_HPP

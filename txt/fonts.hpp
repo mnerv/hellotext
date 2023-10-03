@@ -9,6 +9,7 @@
 #include FT_LCD_FILTER_H
 #include FT_BITMAP_H
 
+#include "utility.hpp"
 #include "image.hpp"
 
 namespace txt {
@@ -18,7 +19,7 @@ enum class text_render_mode {
     subpixel,  // Using subpixel to anti-aliased
     raster     // For rasterised font, scaled with nearest neighbor
 };
-using atlas_ref_t = image_rgba;
+using atlas_ref_t = ref<image_u8>;
 
 class typeface {};
 

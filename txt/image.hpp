@@ -6,22 +6,42 @@
 #include <cstring>
 #include <string_view>
 
+#include "fmt/format.h"
+
 namespace txt {
-template <typename T, std::size_t C = 3>
+template <typename T>
 class image {
 public:
     using pointer_type = T*;
-    using pixel_type   = std::array<T, C>;
+    using pixel_type   = std::array<T, 4>;
 
 public:
-    image(std::size_t width, std::size_t height)
+    image(std::size_t width, std::size_t height, std::size_t channels = 3)
         : m_buffer(nullptr)
         , m_width(width)
         , m_height(height)
-        , m_channels(C)
+        , m_channels(channels)
         , m_size(m_width * m_height * m_channels) {
         m_buffer = new T[m_size];
         std::memset(m_buffer, 0, m_size * sizeof(T));
+    }
+    image(T const* data, std::size_t width, std::size_t height, std::size_t channels = 3)
+        : m_buffer(nullptr)
+        , m_width(width)
+        , m_height(height)
+        , m_channels(channels)
+        , m_size(m_width * m_height * m_channels) {
+        m_buffer = new T[m_size];
+        std::memcpy(m_buffer, data, m_size * sizeof(T));
+    }
+    image(image const& img)
+        : m_buffer(nullptr)
+        , m_width(img.m_width)
+        , m_height(img.m_height)
+        , m_channels(img.m_channels)
+        , m_size(m_width * m_height * m_channels) {
+        m_buffer = new T[m_size];
+        std::memcpy(m_buffer, img.m_buffer, m_size * sizeof(T));
     }
     ~image() {
         delete[] m_buffer;
@@ -92,15 +112,11 @@ private:
     std::size_t  m_size;
 };
 
-auto native_write_png(std::string_view const& filename, void const* data, std::size_t width, std::size_t height, std::size_t channels, std::size_t stride) -> void;
+using image_u8 = image<std::uint8_t>;
 
-using image_rgb  = image<std::uint8_t>;
-using image_rgba = image<std::uint8_t, 4>;
+auto write_png(std::string_view const& filename, image_u8 const& img) -> void;
 
-template <typename T, std::size_t C>
-auto write_png(std::string_view const& filename, image<T, C> const& img) -> void {
-    native_write_png(filename, img.data(), img.width(), img.height(), img.channels(), img.width() * img.channels() * sizeof(T));
-}
+auto load_image_rgba(std::string const& filename) -> image_u8;
 } // namespace txt
 
 #endif  // TXT_IMAGE_HPP

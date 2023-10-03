@@ -10,5 +10,6 @@ in vec2 _uv_size;
 uniform sampler2D u_texture;
 
 void main() {
-    color = texture(u_texture, _uv);
+    vec2 uv = (_uv * _uv_size) + _uv_offset;
+    color = texture(u_texture, uv);
 }

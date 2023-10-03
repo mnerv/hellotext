@@ -17,6 +17,10 @@ static auto const TARGET_NAME = "#canvas";
 #endif
 
 namespace txt {
+auto make_window(window::props const& props) -> window_ref_t {
+    return make_ref<window>(props);
+}
+
 auto read_text(std::filesystem::path const& filename) -> std::string {
     if (!std::filesystem::exists(filename))
         throw std::runtime_error(fmt::format("File \"{:s}\" does not exist!", filename.string()));
@@ -27,10 +31,6 @@ auto read_text(std::filesystem::path const& filename) -> std::string {
         std::istreambuf_iterator<char>(input),
         std::istreambuf_iterator<char>()
     };
-}
-
-auto window::make(window::props const& props) -> window::ref_t {
-    return make_ref<window>(props);
 }
 
 [[nodiscard]]static auto info_opengl() -> std::string {
@@ -177,7 +177,7 @@ auto window::clean_native() -> void {
 }
 #endif  // __EMSCRIPTEN__
 
-auto loop(window::ref_t window, loop_t fn) -> void {
+auto loop(window_ref_t window, loop_t fn) -> void {
     static auto _window = window;
     static auto _fn     = fn;
 

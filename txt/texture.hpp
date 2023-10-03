@@ -2,6 +2,8 @@
 #define TXT_TEXTURE_HPP
 #include <cstddef>
 #include <cstdint>
+
+#include "utility.hpp"
 #include "image.hpp"
 
 namespace txt {
@@ -38,9 +40,34 @@ enum class pixel_type : std::uint32_t {
     u32_10_10_10_2, u32_2_10_10_10_rev
 };
 
+enum class tex_filter : std::uint32_t {
+    unknown = 0,
+    nearest,
+    linear,
+    nearest_mipmap_nearest,
+    linear_mipmap_nearest,
+    nearest_mipmap_linear,
+    linear_mipmap_linear,
+};
+
+enum class tex_wrap : std::uint32_t {
+    unknown = 0,
+    repeat,
+    mirrored_repeat,
+    clamp_to_edge,
+    clamp_to_border,
+    mirror_clamp_to_edge
+};
+
 struct texture_props {
-    pixel_fmt internal{pixel_fmt::rgba};
-    pixel_fmt format{pixel_fmt::rgba};
+    pixel_fmt  internal{pixel_fmt::rgba};
+    pixel_fmt  format{pixel_fmt::rgba};
+    tex_filter min_filter{tex_filter::nearest};
+    tex_filter mag_filter{tex_filter::nearest};
+    tex_wrap   wrap_s{tex_wrap::clamp_to_edge};  // x
+    tex_wrap   wrap_t{tex_wrap::clamp_to_edge};  // y
+    tex_wrap   wrap_r{tex_wrap::clamp_to_edge};  // z - only if you're using 3D texture
+    bool       mipmap{true};
 };
 
 class texture {
@@ -48,10 +75,11 @@ public:
     texture(void const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels, texture_props const& props = {});
     ~texture();
 
+    auto id() const -> std::uint32_t { return m_id; }
     auto width() const -> std::size_t { return m_width; }
     auto height() const -> std::size_t { return m_height; }
-    auto channels() const -> std::size_t { return m_channels; }
 
+    auto set(void const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels, texture_props const& props = {}) -> void;
     auto bind(std::size_t const& slot = 0) const -> void;
     auto unbind(std::size_t const& slot = 0) const -> void;
 
@@ -61,6 +89,9 @@ private:
     std::size_t   m_height;
     std::size_t   m_channels;
 };
+
+using texture_ref_t = ref<texture>;
+auto make_texture(void const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels, texture_props const& props) -> texture_ref_t;
 }
 
 #endif  // TXT_TEXTURE_HPP

@@ -23,7 +23,7 @@ static renderer::local_t s_instance = nullptr;
     0, 2, 3,
 };
 
-auto renderer::init(window::ref_t window) -> void {
+auto renderer::init(window_ref_t window) -> void {
     if (s_instance != nullptr) throw std::runtime_error("txt::render has already been initialised!");
     s_instance = std::make_unique<renderer>(window);
 }
@@ -46,31 +46,63 @@ auto clear(GLenum bitmask) -> void {
 auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color) -> void {
     s_instance->rect(position, size, rotation, color);
 }
+auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color) -> void {
+    s_instance->rect(position, size, rotation, texture, uv, uv_size, color);
+}
 
 auto renderer::begin() -> void {
-    m_gpu_rects_count = 0;
+    m_depth = 0.0f;
+    m_textures.clear();
+    m_color_rect_count = 0;
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 }
 
 auto renderer::end() -> void {
-    auto const instance_bytes = m_gpu_rects_count * sizeof(gpu_rect);
-    m_rects_vb->bind();
-    m_rects_vb->resize(instance_bytes);
-    m_rects_vb->sub(m_gpu_rects.data(), instance_bytes, 0);
-    m_rects_vb->unbind();
+    m_view = glm::lookAt(glm::vec3{0.0, 0.0, 1023.0}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
+    m_projection = glm::ortho(0.0f, float(m_window->width()), 0.0f, float(m_window->height()), 0.1f, 1024.0f);
 
-    m_view = glm::lookAt(glm::vec3{0.0, 0.0, 255.0f}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
-    m_projection = glm::ortho(0.0f, float(m_window->width()), 0.0f, float(m_window->height()), 1.0f, 256.0f);
+    if (m_color_rect_count > 0) {
+        auto const bytes = m_color_rect_count * sizeof(gpu_rect);
+        m_vertex_buffers->bind();
+        m_vertex_buffers->resize(bytes);
+        m_vertex_buffers->sub(m_color_rects.data(), bytes, 0);
+        m_vertex_buffers->unbind();
 
-    m_shader->bind();
-    m_shader->upload_mat4("u_model", m_model);
-    m_shader->upload_mat4("u_view", m_view);
-    m_shader->upload_mat4("u_projection", m_projection);
+        m_shader_color->bind();
+        m_shader_color->upload_mat4("u_model", m_model);
+        m_shader_color->upload_mat4("u_view", m_view);
+        m_shader_color->upload_mat4("u_projection", m_projection);
 
-    m_rects->bind();
-    m_rect_ib->bind();
-    glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_rect_ib->size()), gl_type(m_rect_ib->type()), nullptr, GLsizei(m_gpu_rects_count));
+        m_buffer_layout->bind();
+        m_index_buffer->bind();
+        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_index_buffer->size()), gl_type(m_index_buffer->type()), nullptr, GLsizei(m_color_rect_count));
+    }
+
+    auto is_first = true;
+    for (auto const& [texture, rects] : m_textures) {
+        auto const bytes = rects.size() * sizeof(gpu_rect);
+        if (bytes == 0) continue;
+
+        m_vertex_buffers->bind();
+        m_vertex_buffers->resize(bytes);
+        m_vertex_buffers->sub(rects.data(), bytes, 0);
+        m_vertex_buffers->unbind();
+
+        if (is_first) {
+            is_first = false;
+            m_shader_texture->bind();
+            m_shader_texture->upload_num("u_texture", 0.0f);
+            m_shader_texture->upload_mat4("u_model", m_model);
+            m_shader_texture->upload_mat4("u_view", m_view);
+            m_shader_texture->upload_mat4("u_projection", m_projection);
+        }
+
+        texture->bind();
+        m_buffer_layout->bind();
+        m_index_buffer->bind();
+        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_index_buffer->size()), gl_type(m_index_buffer->type()), nullptr, GLsizei(rects.size()));
+    }
 }
 
 auto renderer::viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void {
@@ -90,36 +122,51 @@ auto renderer::clear(GLenum bitmask) -> void {
 
 auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color) -> void {
     gpu_rect rect{
-        color,
-        {position.x, position.y, 0.0f},
-        {size, 1.0f},
-        {0.0f, 0.0f, rotation},
-        {0.0f, 0.0f},
-        {1.0f, 1.0f},
+        .color     = color,
+        .position  = {position.x, position.y, m_depth},
+        .scale     = {size, 1.0f},
+        .rotation  = {0.0f, 0.0f, rotation},
+        .uv_offset = {0.0f, 0.0f},
+        .uv_size   = {1.0f, 1.0f},
     };
-
-    if ( m_gpu_rects_count < m_gpu_rects.size()) {
-        m_gpu_rects[m_gpu_rects_count] = rect;
+    if (m_color_rect_count < m_color_rects.size()) {
+        m_color_rects[m_color_rect_count] = rect;
     } else {
-        m_gpu_rects.push_back(rect);
+        m_color_rects.push_back(rect);
     }
-    ++m_gpu_rects_count;
+    ++m_color_rect_count;
+    m_depth += m_depth_step;
+}
+auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color) -> void {
+    gpu_rect rect{
+        .color     = color,
+        .position  = {position.x, position.y, m_depth},
+        .scale     = {size, 1.0f},
+        .rotation  = {0.0f, 0.0f, rotation},
+        .uv_offset = uv,
+        .uv_size   = uv_size,
+    };
+    m_textures[texture].push_back(rect);
+    m_depth += m_depth_step;
 }
 
-renderer::renderer(window::ref_t window) : m_window(window) {
-    m_shader = make_shader(
-        read_text("./shaders/opengl/texture.vert"),
+renderer::renderer(window_ref_t window) : m_window(window) {
+    m_shader_color = make_shader(
+        read_text("./shaders/opengl/base.vert"),
         read_text("./shaders/opengl/color.frag")
     );
-
-    m_rect_ib = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
-    m_rects = make_attribute_descriptor();
-    m_rects->add(make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::static_draw), {
+    m_shader_texture = make_shader(
+        read_text("./shaders/opengl/base.vert"),
+        read_text("./shaders/opengl/texture.frag")
+    );
+    m_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
+    m_buffer_layout = make_attribute_descriptor();
+    m_buffer_layout->add(make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::static_draw), {
         {type::vec3},
         {type::vec2}
     });
-    m_rects_vb = make_vertex_buffer(nullptr, sizeof(gpu_rect), type::f32, usage::dynamic_draw);
-    m_rects->add(m_rects_vb, {
+    m_vertex_buffers = make_vertex_buffer(nullptr, sizeof(gpu_rect), type::f32, usage::dynamic_draw);
+    m_buffer_layout->add(m_vertex_buffers, {
         {type::vec4, false, 1},
         {type::vec3, false, 1},
         {type::vec3, false, 1},
