@@ -43,11 +43,11 @@ auto clear_color(std::uint32_t color, float alpha) -> void {
 auto clear(GLenum bitmask) -> void {
     s_instance->clear(bitmask);
 }
-auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color) -> void {
-    s_instance->rect(position, size, rotation, color);
+auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, glm::vec4 const& round) -> void {
+    s_instance->rect(position, size, rotation, color, round);
 }
-auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color) -> void {
-    s_instance->rect(position, size, rotation, texture, uv, uv_size, color);
+auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color, glm::vec4 const& round) -> void {
+    s_instance->rect(position, size, rotation, texture, uv, uv_size, color, round);
 }
 
 auto renderer::begin() -> void {
@@ -61,6 +61,9 @@ auto renderer::begin() -> void {
 auto renderer::end() -> void {
     m_view = glm::lookAt(glm::vec3{0.0, 0.0, 1023.0}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
     m_projection = glm::ortho(0.0f, float(m_window->width()), 0.0f, float(m_window->height()), 0.1f, 1024.0f);
+    // auto const time = float(m_window->time());
+    static float time = 0.0f;
+    time += 0.01f;
 
     if (m_color_rect_count > 0) {
         auto const bytes = m_color_rect_count * sizeof(gpu_rect);
@@ -73,6 +76,7 @@ auto renderer::end() -> void {
         m_shader_color->upload_mat4("u_model", m_model);
         m_shader_color->upload_mat4("u_view", m_view);
         m_shader_color->upload_mat4("u_projection", m_projection);
+        m_shader_color->upload_num("u_time", time);
 
         m_buffer_layout->bind();
         m_index_buffer->bind();
@@ -96,6 +100,7 @@ auto renderer::end() -> void {
             m_shader_texture->upload_mat4("u_model", m_model);
             m_shader_texture->upload_mat4("u_view", m_view);
             m_shader_texture->upload_mat4("u_projection", m_projection);
+            m_shader_texture->upload_num("u_time", time);
         }
 
         texture->bind();
@@ -120,14 +125,15 @@ auto renderer::clear(GLenum bitmask) -> void {
     glClear(bitmask);
 }
 
-auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color) -> void {
+auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, glm::vec4 const& round) -> void {
     gpu_rect rect{
         .color     = color,
         .position  = {position.x, position.y, m_depth},
-        .scale     = {size, 1.0f},
+        .scale     = {size.x, size.y, 1.0f},
         .rotation  = {0.0f, 0.0f, rotation},
         .uv_offset = {0.0f, 0.0f},
         .uv_size   = {1.0f, 1.0f},
+        .round     = round
     };
     if (m_color_rect_count < m_color_rects.size()) {
         m_color_rects[m_color_rect_count] = rect;
@@ -137,17 +143,23 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float cons
     ++m_color_rect_count;
     m_depth += m_depth_step;
 }
-auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color) -> void {
+auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color, glm::vec4 const& round) -> void {
     gpu_rect rect{
         .color     = color,
         .position  = {position.x, position.y, m_depth},
-        .scale     = {size, 1.0f},
+        .scale     = {size.x, size.y, 1.0f},
         .rotation  = {0.0f, 0.0f, rotation},
         .uv_offset = uv,
         .uv_size   = uv_size,
+        .round     = round
     };
     m_textures[texture].push_back(rect);
     m_depth += m_depth_step;
+}
+
+auto renderer::text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color) -> void {
+}
+auto renderer::text_size(std::string const& str) -> glm::vec2 {
 }
 
 renderer::renderer(window_ref_t window) : m_window(window) {
@@ -173,6 +185,7 @@ renderer::renderer(window_ref_t window) : m_window(window) {
         {type::vec3, false, 1},
         {type::vec2, false, 1},
         {type::vec2, false, 1},
+        {type::vec4, false, 1},
     });
 }
 renderer::~renderer() {

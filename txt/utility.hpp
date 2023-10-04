@@ -6,6 +6,7 @@
 #include <functional>
 #include <type_traits>
 #include <concepts>
+#include <numbers>
 
 namespace txt {
 
@@ -41,6 +42,10 @@ template <typename T, typename... Args>
 constexpr auto make_local(Args&&... args) -> local<T> {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
+
+// Math constants
+inline constexpr auto pi    = std::numbers::pi;
+inline constexpr auto pif32 = std::numbers::pi_v<float>;
 } // namespace txt
 
 #endif // TXT_UTILITY_HPP

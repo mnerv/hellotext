@@ -70,6 +70,12 @@ auto window::time() const -> double {
     auto const s = std::chrono::duration<double>(t.time_since_epoch());
     return s.count();
 }
+auto window::stopwatch() const -> double {
+    auto const t = std::chrono::high_resolution_clock::now();
+    auto const s = std::chrono::duration<double>(t.time_since_epoch());
+    return s.count();
+}
+
 auto window::close() -> void {
     m_should_close = true;
 }
@@ -186,6 +192,29 @@ auto loop(window_ref_t window, loop_t fn) -> void {
 #else
     emscripten_set_main_loop([] {
         _fn();
+        if (_window->should_close()) emscripten_cancel_main_loop();
+    }, -1, EM_TRUE);
+#endif  // __EMSCRIPTEN__
+}
+
+auto loop(window_ref_t window, loop_dt_t fn) -> void {
+    static auto _window = window;
+    static auto _fn     = fn;
+    static auto previous_time = window->stopwatch();
+
+#ifndef __EMSCRIPTEN__
+    while (!_window->should_close()) {
+        auto const now = window->stopwatch();
+        auto const delta = now - previous_time;
+        previous_time = now;
+        _fn(delta);
+    }
+#else
+    emscripten_set_main_loop([] {
+        auto const now = window->stopwatch();
+        auto const delta = now - previous_time;
+        previous_time = now;
+        _fn(delta);
         if (_window->should_close()) emscripten_cancel_main_loop();
     }, -1, EM_TRUE);
 #endif  // __EMSCRIPTEN__

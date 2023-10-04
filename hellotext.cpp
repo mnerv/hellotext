@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <vector>
 #include <string_view>
+
 #include "fmt/format.h"
 
 #include "txt/window.hpp"
@@ -13,16 +14,17 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
 
     auto texture = txt::make_texture(txt::load_image_rgba("./nurture.jpg", true));
 
-    txt::loop(window, [&]{
+    auto rotation = 0.0f;
+    txt::loop(window, [&] (double dt){
         txt::begin_frame();
         txt::viewport(0, 0, window->buffer_width(), window->buffer_height());
         txt::clear_color(0x000000);
         txt::clear();
 
-        txt::rect({float(window->width()) / 2.0f, float(window->height()) / 2.0f}, {100.0f, 100.0f}, 0.0f);
-        txt::rect({float(window->width()) / 2.0f, float(window->height()) / 2.0f}, {50.0f, 50.0f}, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f});
-        txt::rect({float(window->width()) / 2.0f + 50.0f, float(window->height()) / 2.0f + 50.0f}, {100.0f, 100.0f}, 0.0f, texture, {0.5f, 0.6f}, {0.5f, 0.5f});
-        txt::rect({float(window->width()) / 2.0f + 100.0f, float(window->height()) / 2.0f + 100.0f}, {100.0f, 100.0f}, 0.0f);
+        rotation += 2.0f * txt::pif32 * 0.5f * float(dt);
+
+        txt::rect({float(window->width()) / 2.0f, float(window->height()) / 2.0f}, {100.0f, 100.0f}, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f}, {5.0f, 0.0f, 0.0f, 0.0f});
+        txt::rect({float(window->width()) / 2.0f + 100.0f, float(window->height()) / 2.0f + 100.0f}, {100.0f, 100.0f}, -rotation, texture);
 
         txt::end_frame();
 

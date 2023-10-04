@@ -32,6 +32,7 @@ public:
     auto should_close() const noexcept -> bool;
 
     auto time() const -> double;
+    auto stopwatch() const -> double;
     auto close() -> void;
     auto poll() -> void;
     auto swap() -> void;
@@ -57,6 +58,9 @@ auto make_window(window::props const& props) -> window_ref_t;
 
 using loop_t = std::function<void()>;
 auto loop(window_ref_t window, loop_t fn) -> void;
+
+using loop_dt_t = std::function<void(double)>;
+auto loop(window_ref_t window, loop_dt_t fn) -> void;
 } // namespace txt
 
 #endif  // TXT_WINDOW_HPP

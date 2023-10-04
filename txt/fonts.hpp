@@ -21,11 +21,24 @@ enum class text_render_mode {
 };
 using atlas_ref_t = ref<image_u8>;
 
-class typeface {};
+// I tried to follow the analogy from Google Fonts: Family, type family or font family.
+// https://fonts.google.com/knowledge/glossary/family_or_type_family_or_font_family
 
-class font_family {};
+// Contains the rendered bitmap, belongs to typeface
+struct glyph {
+};
 
-class font_manager {};
+// Contains the loaded font and rendered glyph, belongs to font family
+class typeface {
+};
+
+// This will contain the texture atlas, belongs to font manager.
+class font_family {
+};
+
+// Handle adding fonts and loading it. Do most of heavy lifting using freetype.
+class font_manager {
+};
 } // namespace txt
 
 #endif  // TXT_FONTS_HPP

@@ -22,6 +22,16 @@
 #endif
 
 namespace txt {
+auto begin_frame() -> void;
+auto end_frame() -> void;
+auto viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void;
+auto clear_color(std::uint32_t color, float alpha = 1.0f) -> void;
+auto clear(GLenum bitmask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) -> void;
+auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color = glm::vec4{1.0f}, glm::vec4 const& round = {}) -> void;
+auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv = glm::vec2{0.0f}, glm::vec2 const& uv_size = glm::vec2{1.0f}, glm::vec4 const& color = glm::vec4{0.0f}, glm::vec4 const& round = {}) -> void;
+auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color = glm::vec4{1.0f});
+auto text_size(std::string const& str) -> glm::vec2;
+
 // Rectangle GPU instance memory
 struct gpu_rect {
     glm::vec4 color{0.0f};
@@ -30,18 +40,8 @@ struct gpu_rect {
     glm::vec3 rotation{0.0f};
     glm::vec2 uv_offset{0.0f};
     glm::vec2 uv_size{1.0f};
-    // glm::vec4 round;
+    glm::vec4 round{0.0f};
 };
-
-auto begin_frame() -> void;
-auto end_frame() -> void;
-auto viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void;
-auto clear_color(std::uint32_t color, float alpha = 1.0f) -> void;
-auto clear(GLenum bitmask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) -> void;
-auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color = glm::vec4{1.0f}) -> void;
-auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv = glm::vec2{0.0f}, glm::vec2 const& uv_size = glm::vec2{1.0f}, glm::vec4 const& color = glm::vec4{0.0f}) -> void;
-auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color = glm::vec4{1.0f});
-auto text_size(std::string const& str) -> glm::vec2;
 
 class renderer {
 public:
@@ -58,11 +58,13 @@ public:
     auto clear_color(std::uint32_t color, float alpha) -> void;
     auto clear(GLenum bitmask) -> void;
 
-    auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color) -> void;
-    auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color) -> void;
+    auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, glm::vec4 const& round) -> void;
+    auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color, glm::vec4 const& round) -> void;
+    auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color) -> void;
+    auto text_size(std::string const& str) -> glm::vec2;
 
 private:
-    window_ref_t          m_window;
+    window_ref_t m_window;
     std::vector<gpu_rect> m_color_rects{};
     std::map<texture_ref_t, std::vector<gpu_rect>> m_textures{};
     std::size_t m_color_rect_count{0};
