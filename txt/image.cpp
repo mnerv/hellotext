@@ -8,11 +8,12 @@ auto write_png(std::string_view const& filename, image_u8 const& img) -> void {
     stbi_write_png(filename.data(), std::int32_t(img.width()), std::int32_t(img.height()), std::int32_t(img.channels()), img.data(), stride);
 }
 
-auto load_image_rgba(std::string const& filename) -> image_u8 {
+auto load_image_rgba(std::string const& filename, bool flip) -> image_u8_ref_t {
     std::int32_t width, height, channels;
     auto buffer = stbi_load(filename.c_str(), &width, &height, &channels, 0);
-    image_u8 img(buffer, width, height, channels);
+    auto img = make_ref<image_u8>(buffer, width, height, channels);
     stbi_image_free(buffer);
+    if (flip) img->fliph();
     return img;
 }
 } // namespace txt

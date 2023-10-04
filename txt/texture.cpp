@@ -7,10 +7,6 @@
 #endif
 
 namespace txt {
-auto make_texture(void const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels, texture_props const& props) -> texture_ref_t {
-    return make_ref<texture>(data, width, height, channels, props);
-}
-
 constexpr auto gl_texture_format(pixel_fmt value) -> GLenum {
     switch (value) {
         case pixel_fmt::rgb:  return GL_RGB;
@@ -40,6 +36,32 @@ constexpr auto gl_texture_filter(tex_filter value) -> GLenum {
         case tex_filter::linear_mipmap_linear:   return GL_LINEAR_MIPMAP_LINEAR;
         default: return GL_NEAREST;
     }
+}
+
+constexpr auto infer_format_from_channels(std::size_t channels) -> pixel_fmt {
+    switch (channels) {
+        case 1:  return pixel_fmt::red;
+        case 2:  return pixel_fmt::rg;
+        case 3:  return pixel_fmt::rgb;
+        case 4:  return pixel_fmt::rgba;
+        default: return pixel_fmt::rgb;
+    }
+}
+
+auto make_texture(void const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels, texture_props const& props) -> texture_ref_t {
+    return make_ref<texture>(data, width, height, channels, props);
+}
+auto make_texture(image_u8_ref_t img, texture_props const& props) -> texture_ref_t {
+    return make_texture(img->data(), img->width(), img->height(), img->channels(), {
+        .internal = props.internal,
+        .format   = infer_format_from_channels(img->channels()),
+        .min_filter = props.min_filter,
+        .mag_filter = props.mag_filter,
+        .wrap_s = props.wrap_s,  // x
+        .wrap_t = props.wrap_t,  // y
+        .wrap_r = props.wrap_r,  // z - only if you're using 3D texture
+        .mipmap = props.mipmap
+    });
 }
 
 texture::texture(void const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels, texture_props const& props)

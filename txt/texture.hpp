@@ -61,7 +61,7 @@ enum class tex_wrap : std::uint32_t {
 
 struct texture_props {
     pixel_fmt  internal{pixel_fmt::rgba};
-    pixel_fmt  format{pixel_fmt::rgba};
+    pixel_fmt  format{pixel_fmt::rgba};          // This will be infered if image is passed in.
     tex_filter min_filter{tex_filter::nearest};
     tex_filter mag_filter{tex_filter::nearest};
     tex_wrap   wrap_s{tex_wrap::clamp_to_edge};  // x
@@ -92,6 +92,7 @@ private:
 
 using texture_ref_t = ref<texture>;
 auto make_texture(void const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels, texture_props const& props) -> texture_ref_t;
+auto make_texture(image_u8_ref_t img, texture_props const& props = {}) -> texture_ref_t;
 }
 
 #endif  // TXT_TEXTURE_HPP

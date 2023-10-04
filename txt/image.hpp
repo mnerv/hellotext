@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "fmt/format.h"
+#include "utility.hpp"
 
 namespace txt {
 template <typename T>
@@ -113,10 +114,10 @@ private:
 };
 
 using image_u8 = image<std::uint8_t>;
+using image_u8_ref_t = ref<image_u8>;
 
 auto write_png(std::string_view const& filename, image_u8 const& img) -> void;
-
-auto load_image_rgba(std::string const& filename) -> image_u8;
+auto load_image_rgba(std::string const& filename, bool flip = false) -> image_u8_ref_t;
 } // namespace txt
 
 #endif  // TXT_IMAGE_HPP

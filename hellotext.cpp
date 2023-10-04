@@ -11,12 +11,7 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
     auto window = txt::make_window({"Hello, Text!"});
     txt::renderer::init(window);
 
-    auto img = txt::load_image_rgba("./nurture.jpg");
-    img.fliph();
-    auto texture = txt::make_texture(img.data(), img.width(), img.height(), img.channels(), {
-        .internal = txt::pixel_fmt::rgba,
-        .format   = txt::pixel_fmt::rgb,
-    });
+    auto texture = txt::make_texture(txt::load_image_rgba("./nurture.jpg", true));
 
     txt::loop(window, [&]{
         txt::begin_frame();
