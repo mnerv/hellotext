@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "utility.hpp"
+#include "buffer.hpp"
 #include "image.hpp"
 
 namespace txt {
@@ -68,6 +69,7 @@ struct texture_props {
     tex_wrap   wrap_t{tex_wrap::clamp_to_edge};  // y
     tex_wrap   wrap_r{tex_wrap::clamp_to_edge};  // z - only if you're using 3D texture
     bool       mipmap{true};
+    txt::type  data_type{txt::type::u8};
 };
 
 class texture {
@@ -80,6 +82,7 @@ public:
     auto height() const -> std::size_t { return m_height; }
 
     auto set(void const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels, texture_props const& props = {}) -> void;
+    auto set(image_u8_ref_t img, texture_props const& props = {}) -> void;
     auto bind(std::size_t const& slot = 0) const -> void;
     auto unbind(std::size_t const& slot = 0) const -> void;
 

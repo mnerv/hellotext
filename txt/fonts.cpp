@@ -23,9 +23,14 @@ auto typeface::reload() -> void {
     for (auto const& [code, glyph] : m_glyphs)
         load_glyph(code, ft_library, ft_bitmap);
 }
-auto typeface::query(std::uint32_t const& code, [[maybe_unused]]std::uint32_t const& size) const -> glyph const& {
-    auto const it = m_glyphs.find(code);
-    if (it == std::end(m_glyphs)) return m_glyphs.at(' ');
+auto typeface::query(std::uint32_t const& code) -> glyph const& {
+    auto it = m_glyphs.find(code);
+    // FIXME: Try to load the glyph if not found
+    if (it == std::end(m_glyphs)) {
+        load_glyph(code);
+        it = m_glyphs.find(code);
+        if (it == std::end(m_glyphs)) return m_glyphs.at(' ');
+    }
     return it->second;
 }
 
@@ -63,6 +68,17 @@ auto typeface::load(character_range_t const& range) -> void {
     for (std::uint32_t code = range[0]; code < range[1]; ++code)
         load_glyph(code, ft_library, ft_bitmap);
 }
+
+auto typeface::load_glyph(std::uint32_t const& code) -> void {
+    // Check pointer expirations from weak ptr. We make sure that the object we have is still alive.
+    if (m_family.expired()) throw std::runtime_error("Font family has expired!");
+    auto const family = m_family.lock();
+    if (family->manager().expired()) throw std::runtime_error("Font manager has expired!");
+    auto const manager = family->manager().lock();
+    auto const ft_library = manager->ft_library();
+    auto const ft_bitmap  = manager->ft_bitmap();
+    load_glyph(code, ft_library, ft_bitmap);
+}
 auto typeface::load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void {
     auto const index = FT_Get_Char_Index(m_ft_face, code);
     if (index == 0) return;
@@ -77,7 +93,7 @@ auto typeface::load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitm
 
     // Convert to one byte alignment
     FT_Bitmap_Convert(library, &m_ft_face->glyph->bitmap, bitmap, 1);
-    auto img = make_ref<image_u8>(width, height, m_channels);
+    auto img = make_image_u8(bitmap->buffer, width, height, m_channels);
     glyph new_glyph{
         .codepoint    = code,
         .bearing_left = left,

@@ -21,18 +21,20 @@ void main() {
         _uv.x * (_size.x / u_size.x) + (_offset.x / u_size.x),
         _uv.y * (_size.y / u_size.y) + (_offset.y / u_size.y)
     );
-
-#if RENDER_MODE == SUBPIXEL
-    vec4 s = texture(u_texture, uv);  // Texture sample
-    color = _color;
-    color_mask = _color.a * s;
-#elif RENDER_MODE == SDF
-    float d = texture(u_texture, uv).r;
-    float aaf = fwidth(d);
-    float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
-    color = vec4(_color.rgb, a);
-#else
     float d = texture(u_texture, uv).r;
     color = vec4(_color.rgb, d);
-#endif
+
+// #if RENDER_MODE == SUBPIXEL
+//     vec4 s = texture(u_texture, uv);  // Texture sample
+//     color = _color;
+//     color_mask = _color.a * s;
+// #elif RENDER_MODE == SDF
+//     float d = texture(u_texture, uv).r;
+//     float aaf = fwidth(d);
+//     float a = smoothstep(0.5 - aaf, 0.5 + aaf, d);
+//     color = vec4(_color.rgb, a);
+// #else
+//     float d = texture(u_texture, uv).r;
+//     color = vec4(_color.rgb, d);
+// #endif
 }

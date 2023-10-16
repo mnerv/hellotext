@@ -33,7 +33,10 @@ public:
         , m_channels(channels)
         , m_size(m_width * m_height * m_channels) {
         m_buffer = new T[m_size];
-        std::memcpy(m_buffer, data, m_size * sizeof(T));
+        if (data != nullptr)
+            std::memcpy(m_buffer, data, m_size * sizeof(T));
+        else
+            std::memset(m_buffer, 0, m_size * sizeof(T));
     }
     image(image const& img)
         : m_buffer(nullptr)
@@ -116,6 +119,7 @@ private:
 using image_u8 = image<std::uint8_t>;
 using image_u8_ref_t = ref<image_u8>;
 
+auto make_image_u8(std::uint8_t const* data, std::size_t width, std::size_t height, std::size_t channels) -> image_u8_ref_t;
 auto write_png(std::string_view const& filename, image_u8 const& img) -> void;
 auto load_image_rgba(std::string const& filename, bool flip = false) -> image_u8_ref_t;
 } // namespace txt

@@ -7,18 +7,18 @@
 
 namespace txt {
 static renderer::local_t s_instance = nullptr;
-[[maybe_unused]]static constexpr float QUAD_VERTICES[]{
+static constexpr float QUAD_VERTICES[]{
 //     x,    y,    z,     u,   v
     -0.5, -0.5,  0.0,   0.0, 0.0,
     -0.5,  0.5,  0.0,   0.0, 1.0,
      0.5,  0.5,  0.0,   1.0, 1.0,
      0.5, -0.5,  0.0,   1.0, 0.0,
 };
-[[maybe_unused]]static constexpr std::initializer_list<attribute_description> QUAD_LAYOUT{
+static constexpr std::initializer_list<attribute_description> QUAD_LAYOUT{
     {txt::type::vec3, 0},  // position
     {txt::type::vec2, 0},  // uv
 };
-[[maybe_unused]]static constexpr std::uint32_t QUAD_INDICES_CW[]{
+static constexpr std::uint32_t QUAD_INDICES_CW[]{
     0, 1, 2,
     0, 2, 3,
 };
@@ -49,7 +49,7 @@ auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotatio
 auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color, glm::vec4 const& round) -> void {
     s_instance->rect(position, size, rotation, texture, uv, uv_size, color, round);
 }
-auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color) {
+auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color) -> void {
     s_instance->text(str, position, color);
 }
 auto text_size(std::string const& str) -> glm::vec2 {
@@ -167,9 +167,7 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float cons
 }
 
 auto renderer::text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color) -> void {
-    m_text->set_depth(m_depth);
-    m_depth += m_depth_step;
-    m_text->text(str, {position, 0.0f}, color);
+    m_text->text(str, {position, m_depth}, color);
 }
 auto renderer::text_size(std::string const& str) -> glm::vec2 {
     return m_text->calc_size(str);

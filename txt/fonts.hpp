@@ -52,7 +52,6 @@ struct glyph {
     std::int64_t   advance_x{0};
     std::int64_t   advance_y{0};
     image_u8_ref_t bitmap{nullptr};
-    // glm::vec2      uv{0.0f};
 };
 
 struct typeface_props {
@@ -72,13 +71,16 @@ public:
 
     auto filename() const -> std::string const& { return m_filename; }
     auto mode() const -> text_render_mode { return m_mode; }
+    auto glyph_size() const -> std::size_t { return m_max_glyph_size; }
+    auto glyphs() const -> std::unordered_map<std::uint32_t, glyph> const& { return m_glyphs; }
     auto channels() const -> std::size_t { return m_channels; }
 
     auto reload() -> void;
-    auto query(std::uint32_t const& code, std::uint32_t const& size = default_size) const -> glyph const&;
+    auto query(std::uint32_t const& code) -> glyph const&;
 
 private:
     auto load(character_range_t const& range = default_character_range) -> void;
+    auto load_glyph(std::uint32_t const& code) -> void;
     auto load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void;
 
 private:
@@ -99,6 +101,7 @@ public:
     ~font_family() = default;
 
     auto name() const -> std::string const& { return m_name; }
+    auto typefaces() const -> std::unordered_map<std::string, typeface_ref_t> const& { return m_typefaces; }
     auto reload() -> void;
     auto add(typeface_props const& props) -> void;
     auto typeface(std::string const& style) const -> typeface_ref_t const&;
@@ -119,6 +122,7 @@ public:
     font_manager();
     ~font_manager();
 
+    auto families() const -> std::unordered_map<std::string, font_family_ref_t> const& { return m_families; }
     auto reload() -> void;
     auto load(typeface_props const& props) -> void;
     auto family(std::string const& family_name) -> font_family_ref_t;

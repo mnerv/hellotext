@@ -226,7 +226,6 @@ private:
 
 using attribute_descriptor_ref_t = ref<attribute_descriptor>;
 auto make_attribute_descriptor() -> attribute_descriptor_ref_t;
-
 } // namespace txt
 
 #endif  // TXT_BUFFER_HPP

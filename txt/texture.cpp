@@ -9,9 +9,11 @@
 namespace txt {
 constexpr auto gl_texture_format(pixel_fmt value) -> GLenum {
     switch (value) {
+        case pixel_fmt::red:  return GL_RED;
+        case pixel_fmt::rg:   return GL_RG;
         case pixel_fmt::rgb:  return GL_RGB;
         case pixel_fmt::rgba: return GL_RGBA;
-        default: return GL_RGBA;
+        default: throw std::runtime_error("Unknown texture format!");
     }
 }
 
@@ -76,18 +78,31 @@ texture::~texture() {
     glDeleteTextures(1, &m_id);
 }
 
+auto texture::set(image_u8_ref_t img, texture_props const& props) -> void {
+    set(img->data(), img->width(), img->height(), img->channels(), {
+        .internal = props.internal,
+        .format   = infer_format_from_channels(img->channels()),
+        .min_filter = props.min_filter,
+        .mag_filter = props.mag_filter,
+        .wrap_s = props.wrap_s,  // x
+        .wrap_t = props.wrap_t,  // y
+        .wrap_r = props.wrap_r,  // z - only if you're using 3D texture
+        .mipmap = props.mipmap
+    });
+}
 auto texture::set(void const* data, std::size_t const& width, std::size_t const& height, std::size_t const& channels, texture_props const& props) -> void {
     m_width    = width;
     m_height   = height;
     m_channels = channels;
 
     glBindTexture(GL_TEXTURE_2D, m_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, gl_texture_format(props.internal), GLsizei(m_width), GLsizei(m_height), 0, gl_texture_format(props.format), GL_UNSIGNED_BYTE, data);
+    glTexImage2D(GL_TEXTURE_2D, 0, gl_texture_format(props.internal), GLsizei(m_width), GLsizei(m_height), 0, gl_texture_format(props.format), gl_type(props.data_type), data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, gl_texture_wrap(props.wrap_s));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, gl_texture_wrap(props.wrap_t));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_texture_filter(props.min_filter));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_texture_filter(props.mag_filter));
     if (props.mipmap) glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 auto texture::bind(std::size_t const& slot) const -> void {
     glActiveTexture(GL_TEXTURE0 + std::uint32_t(slot));
@@ -98,4 +113,3 @@ auto texture::unbind(std::size_t const& slot) const -> void {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 }
-
