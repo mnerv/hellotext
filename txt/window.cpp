@@ -202,6 +202,7 @@ auto loop(window_ref_t window, loop_dt_t fn) -> void {
     static auto _fn     = fn;
     static auto previous_time = window->stopwatch();
 
+    // TODO: Fix timestep
 #ifndef __EMSCRIPTEN__
     while (!_window->should_close()) {
         auto const now = window->stopwatch();

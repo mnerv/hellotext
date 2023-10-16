@@ -143,6 +143,7 @@ set(HEADERS
     txt/image.hpp
     txt/renderer.hpp
     txt/shader.hpp
+    txt/text_engine.hpp
     txt/texture.hpp
     txt/utility.hpp
     txt/window.hpp
@@ -153,6 +154,7 @@ set(SOURCES
     txt/image.cpp
     txt/renderer.cpp
     txt/shader.cpp
+    txt/text_engine.cpp
     txt/texture.cpp
     txt/window.cpp
     hellotext.cpp

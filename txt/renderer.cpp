@@ -49,6 +49,12 @@ auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotatio
 auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color, glm::vec4 const& round) -> void {
     s_instance->rect(position, size, rotation, texture, uv, uv_size, color, round);
 }
+auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color) {
+    s_instance->text(str, position, color);
+}
+auto text_size(std::string const& str) -> glm::vec2 {
+    return s_instance->text_size(str);
+}
 
 auto renderer::begin() -> void {
     m_depth = 0.0f;
@@ -56,6 +62,7 @@ auto renderer::begin() -> void {
     m_color_rect_count = 0;
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
+    m_text->begin();
 }
 
 auto renderer::end() -> void {
@@ -108,6 +115,8 @@ auto renderer::end() -> void {
         m_index_buffer->bind();
         glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_index_buffer->size()), gl_type(m_index_buffer->type()), nullptr, GLsizei(rects.size()));
     }
+
+    m_text->end();
 }
 
 auto renderer::viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void {
@@ -125,7 +134,7 @@ auto renderer::clear(GLenum bitmask) -> void {
     glClear(bitmask);
 }
 
-auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, glm::vec4 const& round) -> void {
+auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, [[maybe_unused]]glm::vec4 const& round) -> void {
     gpu_rect rect{
         .color     = color,
         .position  = {position.x, position.y, m_depth},
@@ -133,7 +142,7 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float cons
         .rotation  = {0.0f, 0.0f, rotation},
         .uv_offset = {0.0f, 0.0f},
         .uv_size   = {1.0f, 1.0f},
-        .round     = round
+        // .round     = round
     };
     if (m_color_rect_count < m_color_rects.size()) {
         m_color_rects[m_color_rect_count] = rect;
@@ -143,7 +152,7 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float cons
     ++m_color_rect_count;
     m_depth += m_depth_step;
 }
-auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color, glm::vec4 const& round) -> void {
+auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color, [[maybe_unused]]glm::vec4 const& round) -> void {
     gpu_rect rect{
         .color     = color,
         .position  = {position.x, position.y, m_depth},
@@ -151,15 +160,19 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float cons
         .rotation  = {0.0f, 0.0f, rotation},
         .uv_offset = uv,
         .uv_size   = uv_size,
-        .round     = round
+        // .round     = round
     };
     m_textures[texture].push_back(rect);
     m_depth += m_depth_step;
 }
 
 auto renderer::text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color) -> void {
+    m_text->set_depth(m_depth);
+    m_depth += m_depth_step;
+    m_text->text(str, {position, 0.0f}, color);
 }
 auto renderer::text_size(std::string const& str) -> glm::vec2 {
+    return m_text->calc_size(str);
 }
 
 renderer::renderer(window_ref_t window) : m_window(window) {
@@ -185,8 +198,11 @@ renderer::renderer(window_ref_t window) : m_window(window) {
         {type::vec3, false, 1},
         {type::vec2, false, 1},
         {type::vec2, false, 1},
-        {type::vec4, false, 1},
+        // {type::vec4, false, 1},
     });
+
+    auto fonts = make_ref<font_manager>();
+    m_text = make_ref<text_engine>(fonts);
 }
 renderer::~renderer() {
 }

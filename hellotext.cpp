@@ -12,7 +12,7 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
     auto window = txt::make_window({"Hello, Text!"});
     txt::renderer::init(window);
 
-    auto texture = txt::make_texture(txt::load_image_rgba("./nurture.jpg", true));
+    // auto texture = txt::make_texture(txt::load_image_rgba("./nurture.jpg", true));
 
     auto rotation = 0.0f;
     txt::loop(window, [&] (double dt){
@@ -21,10 +21,10 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
         txt::clear_color(0x000000);
         txt::clear();
 
-        rotation += 2.0f * txt::pif32 * 0.5f * float(dt);
+        rotation += 2.0f * txt::pif32 * 0.100f * float(dt);
 
-        txt::rect({float(window->width()) / 2.0f, float(window->height()) / 2.0f}, {100.0f, 100.0f}, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f}, {5.0f, 0.0f, 0.0f, 0.0f});
-        txt::rect({float(window->width()) / 2.0f + 100.0f, float(window->height()) / 2.0f + 100.0f}, {100.0f, 100.0f}, -rotation, texture);
+        txt::rect({float(window->width()) / 2.0f, float(window->height()) / 2.0f}, {200.0f, 50.0f}, rotation, {1.0f, 0.0f, 0.0f, 1.0f});
+        // txt::rect({float(window->width()) / 2.0f + 100.0f, float(window->height()) / 2.0f + 100.0f}, {100.0f, 100.0f}, -rotation, texture);
 
         txt::end_frame();
 

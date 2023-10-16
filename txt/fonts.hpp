@@ -22,48 +22,118 @@ enum class text_render_mode {
     raster     // For rasterised font, scaled with nearest neighbor
 };
 
+// Forward declaration
+struct glyph;
+class typeface;
+class font_family;
+class font_manager;
+
+// Alias ref pointer
+using typeface_ref_t      = ref<typeface>;
+using font_family_ref_t   = ref<font_family>;
+using font_manager_ref_t  = ref<font_manager>;
+
+using font_family_weak_t  = weak<font_family>;
+using font_manager_weak_t = weak<font_manager>;
+
+using character_range_t = std::array<std::uint32_t, 2>;
+
+constexpr std::uint32_t default_size = limits<std::uint32_t>::max();
+constexpr character_range_t default_character_range{0, 128};
+
 // I tried to follow the analogy from Google Fonts: Family, type family or font family.
 // https://fonts.google.com/knowledge/glossary/family_or_type_family_or_font_family
 
 // Contains the rendered bitmap, belongs to typeface
 struct glyph {
     std::uint32_t  codepoint{0};
+    std::int32_t   bearing_left{0};
+    std::int32_t   bearing_top{0};
+    std::int64_t   advance_x{0};
+    std::int64_t   advance_y{0};
     image_u8_ref_t bitmap{nullptr};
-    glm::vec2      uv{0.0f};
+    // glm::vec2      uv{0.0f};
+};
+
+struct typeface_props {
+    std::string       filename;
+    std::uint32_t     size;
+    std::string       family;
+    std::string       style;
+    text_render_mode  render_mode{text_render_mode::normal};
+    character_range_t ranges{default_character_range};
 };
 
 // Contains the loaded font and rendered glyph, belongs to font family
-class typeface {
+class typeface : public std::enable_shared_from_this<typeface> {
 public:
+    typeface(typeface_props const& props, font_family_weak_t const& font_family);
+    ~typeface() = default;
+
+    auto filename() const -> std::string const& { return m_filename; }
+    auto mode() const -> text_render_mode { return m_mode; }
+    auto channels() const -> std::size_t { return m_channels; }
+
+    auto reload() -> void;
+    auto query(std::uint32_t const& code, std::uint32_t const& size = default_size) const -> glyph const&;
 
 private:
-    std::string m_filename;
+    auto load(character_range_t const& range = default_character_range) -> void;
+    auto load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void;
+
+private:
+    std::string        m_filename;
+    font_family_weak_t m_family;
+    std::uint32_t      m_size;
+    text_render_mode   m_mode;
+    std::int32_t       m_flags{0x00};
+    std::size_t        m_channels{0x00};
+    FT_Face            m_ft_face{nullptr};
     std::unordered_map<std::uint32_t, glyph> m_glyphs{};
+    std::size_t m_max_glyph_size{0};
 };
 
-// This will contain the texture atlas, belongs to font manager.
-class font_family {
+class font_family : public std::enable_shared_from_this<font_family> {
 public:
-    font_family();
-    ~font_family();
+    font_family(std::string const& name, font_manager_weak_t const& font_manager);
+    ~font_family() = default;
+
+    auto name() const -> std::string const& { return m_name; }
+    auto reload() -> void;
+    auto add(typeface_props const& props) -> void;
+    auto typeface(std::string const& style) const -> typeface_ref_t const&;
 
 private:
-    std::vector<typeface> m_typefaces{};
-};
+    friend txt::typeface;
+    auto manager() -> font_manager_weak_t { return m_manager; }
 
-using font_family_ref_t = ref<font_family>;
+private:
+    std::string m_name;
+    font_manager_weak_t m_manager;
+    std::unordered_map<std::string, typeface_ref_t> m_typefaces{};
+};
 
 // Handle adding fonts and loading it. Do most of heavy lifting using freetype.
-class font_manager {
+class font_manager : public std::enable_shared_from_this<font_manager> {
 public:
     font_manager();
     ~font_manager();
 
+    auto reload() -> void;
+    auto load(typeface_props const& props) -> void;
+    auto family(std::string const& family_name) -> font_family_ref_t;
+
+private:
+    friend typeface;
+    auto ft_library() -> FT_Library { return m_library; }
+    auto ft_bitmap() -> FT_Bitmap* { return &m_bitmap; }
+
 private:
     FT_Library m_library{};
     FT_Bitmap  m_bitmap{};
-    std::vector<font_family_ref_t> m_font_families{};
+    std::unordered_map<std::string, font_family_ref_t> m_families;
 };
+
 } // namespace txt
 
 #endif  // TXT_FONTS_HPP

@@ -9,6 +9,8 @@
 #include "buffer.hpp"
 #include "shader.hpp"
 #include "texture.hpp"
+#include "fonts.hpp"
+#include "text_engine.hpp"
 
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
@@ -40,13 +42,22 @@ struct gpu_rect {
     glm::vec3 rotation{0.0f};
     glm::vec2 uv_offset{0.0f};
     glm::vec2 uv_size{1.0f};
-    glm::vec4 round{0.0f};
+    // glm::vec4 round{0.0f};
 };
 
 class renderer {
 public:
     using local_t = std::unique_ptr<renderer>;
     static auto init(window_ref_t window) -> void;
+
+    class batch {
+    private:
+        shader_ref_t               m_shader;
+        index_buffer_ref_t         m_index_buffer;
+        vertex_buffer_ref_t        m_vertex_buffer;
+        vertex_buffer_ref_t        m_instance_buffer;
+        attribute_descriptor_ref_t m_layout_buffer;
+    };
 
 public:
     renderer(window_ref_t window);
@@ -74,6 +85,8 @@ private:
     index_buffer_ref_t  m_index_buffer{nullptr};
     vertex_buffer_ref_t m_vertex_buffers{nullptr};
     attribute_descriptor_ref_t m_buffer_layout{nullptr};
+
+    text_engine_ref_t m_text{nullptr};
 
 private:
     float m_depth{0.0f};
