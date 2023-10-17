@@ -5,14 +5,12 @@ in vec2 _uv;
 in vec4 _color;
 in vec2 _uv_offset;
 in vec2 _uv_size;
-// in vec4 _round;
-
 in vec2 _scale;
 
-float circle(vec2 position, vec2 center, float radius) {
-    float d = length(position - center);
-    return smoothstep(fwidth(d), 0.0, d - radius);
-}
+// float circle(vec2 position, vec2 center, float radius) {
+//     float d = length(position - center);
+//     return smoothstep(fwidth(d), 0.0, d - radius);
+// }
 
 // float rect(vec2 position, vec2 center, vec2 size) {
 //     vec2 d = abs(position) - size;

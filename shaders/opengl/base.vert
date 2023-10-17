@@ -8,20 +8,16 @@ layout(location = 4) in vec3 a_ts;
 layout(location = 5) in vec3 a_tr;
 layout(location = 6) in vec2 a_uv_offset;
 layout(location = 7) in vec2 a_uv_size;
-// layout(location = 8) in vec4 a_round;
 
 out vec2 _uv;
 out vec4 _color;
 out vec2 _uv_offset;
 out vec2 _uv_size;
-// out vec4 _round;
-
 out vec2 _scale;
 
 uniform mat4 u_model       = mat4(1.0);
 uniform mat4 u_view        = mat4(1.0);
 uniform mat4 u_projection  = mat4(1.0);
-uniform float u_time = 1.0;
 
 void main() {
     _uv        = a_uv;

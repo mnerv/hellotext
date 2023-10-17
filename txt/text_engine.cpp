@@ -1,5 +1,6 @@
 #include "text_engine.hpp"
 #include "renderer.hpp"
+#include "utf8.h"
 
 namespace txt {
 static constexpr float quad_vertices[] = {
@@ -32,22 +33,61 @@ text_engine::text_engine(font_manager_ref_t manager) : m_manager(manager) {
     m_shader_normal = make_shader(vs, fs);
 }
 
-auto text_engine::text(std::string const& str, glm::vec3 const& position, glm::vec4 const& color, typeface_ref_t const& typeface) -> void {
+auto text_engine::typeface(std::string const& family, std::string const& style) -> typeface_ref_t {
+    auto const it = m_manager->families().find(family);
+    if (it == std::end(m_manager->families())) return nullptr;
+    return it->second->typeface(style);
+}
+
+auto text_engine::text(std::string const& txt, glm::vec3 const& position, glm::vec4 const& color, typeface_ref_t const& typeface) -> void {
     auto it = m_batches.find(typeface);
     if (it == std::end(m_batches)) it = m_batches.find(m_typeface);
     auto& tf = it->first;
     auto& batch = it->second;
 
-    // TODO: Handle UTF-8 encoding
-    for (auto const& c : str) {
-        auto const& gh = tf->query(c);
-        batch.push(gh, position, color);
+    //  FIXME: Cache the u32 string
+    std::u32string str{};
+    utf8::utf8to32(std::begin(txt), std::end(txt), std::back_inserter(str));
+    glm::vec3 pos = position;
+    std::int64_t advance_y = 0;
+    for (auto const& code : str) {
+        if (code == '\n') {
+            pos.x = 0.0f;
+            pos.y -= float(advance_y >> 6);
+            continue;
+        }
+        auto const& gh = tf->query(code);
+        batch.push(gh, pos, color);
+        pos.x += float(gh.advance_x >> 6);
+        advance_y = gh.advance_y;
     }
+    // pos.y += float(advance_y >> 6);
 }
-auto text_engine::calc_size(std::string const& str, typeface_ref_t const& typeface) const -> glm::vec2 {
-    (void)str;
-    (void)typeface;
-    return {};
+auto text_engine::calc_size(std::string const& txt, typeface_ref_t const& typeface) const -> glm::vec2 {
+    auto it = m_batches.find(typeface);
+    if (it == std::end(m_batches)) it = m_batches.find(m_typeface);
+    auto& tf = it->first;
+
+    std::u32string str{};
+    utf8::utf8to32(std::begin(txt), std::end(txt), std::back_inserter(str));
+    glm::vec2 position{0.0f};
+    glm::vec2 max{0.0f};
+    std::int64_t advance_y = 0;
+    for (auto const& code : str) {
+        if (code == '\n') {
+            position.x = 0.0f;
+            position.y += float(advance_y >> 6);
+            continue;
+        }
+        auto const& gh = tf->query(code);
+        position.x += float(gh.advance_x >> 6);
+        advance_y = gh.advance_y;
+
+        if (position.x > max.x) max.x = position.x;
+    }
+    position.y += float(advance_y >> 6);
+    if (position.y > max.y) max.y = position.y;
+    return max;
 }
 
 auto text_engine::reload() -> void {
@@ -60,6 +100,8 @@ auto text_engine::reload() -> void {
 auto text_engine::begin() -> void {
     for (auto& [tf, batch] : m_batches)
         batch.count = 0;
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 auto text_engine::end() -> void {
     for (auto& [tf, batch] : m_batches) {
@@ -90,7 +132,7 @@ auto text_engine::batch::push(glyph const& gh, glm::vec3 const& position, glm::v
         .color     = color,
         .size      = {w, h},
         .uv_offset = {u, v},
-        .position  = {xpos, ypos, position.z}
+        .position  = {xpos, ypos - float(size), position.z}
     };
 
     if (count < cache.size()) {
@@ -102,7 +144,12 @@ auto text_engine::batch::push(glyph const& gh, glm::vec3 const& position, glm::v
 }
 auto text_engine::render_normal(batch& batch) -> void {
     m_shader_normal->bind();
-    batch.texture->bind();
+    m_shader_normal->upload_mat4("u_model", m_model);
+    m_shader_normal->upload_mat4("u_view", m_view);
+    m_shader_normal->upload_mat4("u_projection", m_projection);
+    m_shader_normal->upload_vec2("u_size", {float(batch.texture->width()), float(batch.texture->height())});
+    m_shader_normal->upload_num("u_texture", 0.0f);
+    batch.texture->bind(0);
     batch.buffer_layout->bind();
     m_index_buffer->bind();
     glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_index_buffer->size()), gl_type(m_index_buffer->type()), nullptr, GLsizei(batch.count));
@@ -121,6 +168,7 @@ auto text_engine::create_batch(typeface_ref_t tf) -> void {
     }
 
     auto& batch = it->second;
+    batch.size = tf->size();
     resize_atlas(tf, batch);
     for (auto const& [code, glyph] : tf->glyphs()) {
         insert_atlas(glyph, tf, batch);
@@ -140,17 +188,17 @@ auto text_engine::create_batch(typeface_ref_t tf) -> void {
 
     if (is_new) {
         batch.buffer_layout = make_attribute_descriptor();
-        batch.buffer_layout->add(make_vertex_buffer(quad_vertices, sizeof(quad_vertices), type::f32, usage::static_draw), {
+        batch.buffer_layout->add(make_vertex_buffer(quad_vertices, sizeof(quad_vertices), type::f32, usage::static_draw, {
             {type::vec3, false, 0},
             {type::vec2, false, 0}
-        });
-        batch.vertex_buffer = make_vertex_buffer(nullptr, sizeof(gpu), type::f32, usage::dynamic_draw);
-        batch.buffer_layout->add(batch.vertex_buffer, {
+        }));
+        batch.vertex_buffer = make_vertex_buffer(nullptr, sizeof(gpu), type::f32, usage::dynamic_draw, {
             {type::vec4, false, 1},
             {type::vec2, false, 1},
             {type::vec2, false, 1},
             {type::vec3, false, 1},
         });
+        batch.buffer_layout->add(batch.vertex_buffer);
         batch.texture = make_texture(batch.atlas, tex_props);
     }
     batch.texture->set(batch.atlas, tex_props);

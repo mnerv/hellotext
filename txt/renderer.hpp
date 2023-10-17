@@ -2,6 +2,7 @@
 #define TXT_RENDERER_HPP
 #include <memory>
 #include <vector>
+#include <utility>
 #include <map>
 
 #include "utility.hpp"
@@ -30,38 +31,51 @@ auto viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t
 auto clear_color(std::uint32_t color, float alpha = 1.0f) -> void;
 auto clear(GLenum bitmask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) -> void;
 auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color = glm::vec4{1.0f}, glm::vec4 const& round = {}) -> void;
-auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv = glm::vec2{0.0f}, glm::vec2 const& uv_size = glm::vec2{1.0f}, glm::vec4 const& color = glm::vec4{0.0f}, glm::vec4 const& round = {}) -> void;
-auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color = glm::vec4{1.0f}) -> void;
-auto text_size(std::string const& str) -> glm::vec2;
+auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv = {0.0f, 0.0f}, glm::vec2 const& uv_size = {1.0f, 1.0f}, glm::vec4 const& round = {0.0f, 0.0f, 0.0f, 0.0f}) -> void;
+auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color = glm::vec4{1.0f}, typeface_ref_t const& tf = nullptr) -> void;
+auto text_size(std::string const& str, typeface_ref_t const& tf = nullptr) -> glm::vec2;
 
-// Rectangle GPU instance memory
-struct gpu_rect {
+
+struct rect_instance {
     glm::vec4 color{0.0f};
     glm::vec3 position{0.0f};
     glm::vec3 scale{1.0f};
     glm::vec3 rotation{0.0f};
     glm::vec2 uv_offset{0.0f};
     glm::vec2 uv_size{1.0f};
-    // glm::vec4 round{0.0f};
+};
+
+struct shader_texture_pair {
+    shader_ref_t  shader;
+    texture_ref_t texture;
+    mutable std::size_t size;
+    // TODO: Check for stale pair to remove them
+
+    shader_texture_pair(shader_ref_t shader, texture_ref_t texture)
+        : shader(shader), texture(texture), size(0) {}
+
+    auto operator==(shader_texture_pair  const& other) const -> bool {
+        return shader == other.shader && texture == other.texture;
+    }
+
+    struct hash {
+        auto operator()(shader_texture_pair const& mat) const -> std::size_t {
+            auto const shader_hash  = std::hash<txt::shader_ref_t>{}(mat.shader);
+            auto const texture_hash = std::hash<txt::texture_ref_t>{}(mat.texture);
+            return shader_hash ^ (texture_hash << 1);
+        }
+    };
 };
 
 class renderer {
 public:
     using local_t = std::unique_ptr<renderer>;
     static auto init(window_ref_t window) -> void;
-
-    class batch {
-    private:
-        shader_ref_t               m_shader;
-        index_buffer_ref_t         m_index_buffer;
-        vertex_buffer_ref_t        m_vertex_buffer;
-        vertex_buffer_ref_t        m_instance_buffer;
-        attribute_descriptor_ref_t m_layout_buffer;
-    };
+    static auto instance() -> local_t&;
 
 public:
     renderer(window_ref_t window);
-    ~renderer();
+    ~renderer() = default;
 
     auto begin() -> void;
     auto end() -> void;
@@ -70,23 +84,29 @@ public:
     auto clear(GLenum bitmask) -> void;
 
     auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, glm::vec4 const& round) -> void;
-    auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& color, glm::vec4 const& round) -> void;
-    auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color) -> void;
-    auto text_size(std::string const& str) -> glm::vec2;
+    auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& round) -> void;
+    auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, shader_ref_t shader, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, [[maybe_unused]]glm::vec4 const& round) -> void;
+    auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color, typeface_ref_t const& tf) -> void;
+    auto text_size(std::string const& str, typeface_ref_t const& tf) -> glm::vec2;
+    auto load_font(typeface_props const& props) -> typeface_ref_t;
+    auto family(std::string const& family) -> font_family_ref_t;
+    auto typeface(std::string const& family, std::string const& style) -> typeface_ref_t;
+    auto fonts() -> font_manager_ref_t;
+    auto text_engine() -> text_engine_ref_t;
 
 private:
     window_ref_t m_window;
-    std::vector<gpu_rect> m_color_rects{};
-    std::map<texture_ref_t, std::vector<gpu_rect>> m_textures{};
-    std::size_t m_color_rect_count{0};
-    std::size_t m_texture_rect_count{0};
-    shader_ref_t m_shader_color{nullptr};
-    shader_ref_t m_shader_texture{nullptr};
-    index_buffer_ref_t  m_index_buffer{nullptr};
-    vertex_buffer_ref_t m_vertex_buffers{nullptr};
-    attribute_descriptor_ref_t m_buffer_layout{nullptr};
+    shader_ref_t m_rect_default_shader;
+    shader_ref_t m_rect_texture_shader;
+    // Base rectangle batch
+    index_buffer_ref_t  m_rect_index_buffer;
+    vertex_buffer_ref_t m_rect_vertex_buffer;
+    attribute_descriptor_ref_t m_rect_descriptor;
+    text_engine_ref_t m_text_engine;
 
-    text_engine_ref_t m_text{nullptr};
+    std::size_t m_color_rect_size{0};
+    std::vector<rect_instance> m_color_rects{};
+    std::unordered_map<shader_texture_pair, std::vector<rect_instance>, shader_texture_pair::hash> m_shader_texture_rects{};
 
 private:
     float m_depth{0.0f};
@@ -94,8 +114,8 @@ private:
 
 private:
     glm::mat4 m_model{1.0f};
-    glm::mat4 m_view{};
-    glm::mat4 m_projection{};
+    glm::mat4 m_view{1.0f};
+    glm::mat4 m_projection{1.0f};
 };
 } // namespace txt
 

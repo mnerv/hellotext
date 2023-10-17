@@ -11,20 +11,30 @@
 static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> void {
     auto window = txt::make_window({"Hello, Text!"});
     txt::renderer::init(window);
+    auto roboto = txt::renderer::instance()->load_font({
+        .filename = "./res/fonts/RobotoMono/RobotoMonoNerdFontMono-Medium.ttf",
+        .size     = 13,
+        .family   = "Roboto Mono Nerd Font Mono",
+        .style    = "Medium"
+    });
+    auto sfmono = txt::renderer::instance()->load_font({
+        .filename = "res/fonts/SFMono/SFMono Semibold Nerd Font Complete.otf",
+        .size     = 11,
+        .family   = "SF Mono",
+        .style    = "Semibold"
+    });
 
-    // auto texture = txt::make_texture(txt::load_image_rgba("./nurture.jpg", true));
+    // auto texture = txt::make_texture(txt::load_image_rgba("./nurture.jpg"));
 
-    auto rotation = 0.0f;
-    txt::loop(window, [&] (double dt){
+    txt::loop(window, [&] (double){
         txt::begin_frame();
         txt::viewport(0, 0, window->buffer_width(), window->buffer_height());
         txt::clear_color(0x000000);
         txt::clear();
 
-        rotation += 2.0f * txt::pif32 * 0.100f * float(dt);
-
-        txt::rect({float(window->width()) / 2.0f, float(window->height()) / 2.0f}, {200.0f, 50.0f}, rotation, {1.0f, 0.0f, 0.0f, 1.0f});
-        // txt::rect({float(window->width()) / 2.0f + 100.0f, float(window->height()) / 2.0f + 100.0f}, {100.0f, 100.0f}, -rotation, texture);
+        txt::text("Hello, World!", {0.0f, float(window->height())});
+        txt::text("Oh no!", {float(window->width()) / 2.0f, float(window->height()) / 2.0f + 16.0f}, glm::vec4{1.0f, 1.0f, 0.0f, 1.0f}, roboto);
+        txt::text("wow", {float(window->width()) / 2.0f, float(window->height()) / 2.0f + 32.0f}, glm::vec4{1.0f, 0.0f, 0.0f, 1.0f}, sfmono);
 
         txt::end_frame();
 

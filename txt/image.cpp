@@ -1,6 +1,9 @@
 #include "image.hpp"
 #include "stb_image.h"
 #include "stb_image_write.h"
+#include "fmt/format.h"
+
+#include <filesystem>
 
 namespace txt {
 auto make_image_u8(std::uint8_t const* data, std::size_t width, std::size_t height, std::size_t channels) -> image_u8_ref_t {
@@ -13,6 +16,7 @@ auto write_png(std::string_view const& filename, image_u8 const& img) -> void {
 }
 
 auto load_image_rgba(std::string const& filename, bool flip) -> image_u8_ref_t {
+    if (!std::filesystem::exists(filename)) throw std::runtime_error(fmt::format("Image file '{}' does not exist!", filename));
     std::int32_t width, height, channels;
     auto buffer = stbi_load(filename.c_str(), &width, &height, &channels, 0);
     auto img = make_ref<image_u8>(buffer, width, height, channels);

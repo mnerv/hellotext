@@ -6,8 +6,8 @@
 #include "fmt/format.h"
 
 namespace txt {
-auto make_vertex_buffer(void const* data, std::size_t const& bytes, txt::type const& type, txt::usage const& usage) -> vertex_buffer_ref_t {
-    return make_ref<vertex_buffer>(data, bytes, type, usage);
+auto make_vertex_buffer(void const* data, std::size_t const& bytes, txt::type const& type, txt::usage const& usage, attribute_descriptions_t const& layout) -> vertex_buffer_ref_t {
+    return make_ref<vertex_buffer>(data, bytes, type, usage, layout);
 }
 auto make_index_buffer(void const* data, std::size_t const& bytes, std::size_t const& size, txt::type const& type, txt::usage const& usage) -> index_buffer_ref_t {
     return make_ref<index_buffer>(data, bytes, size, type, usage);
@@ -16,11 +16,12 @@ auto make_attribute_descriptor() -> attribute_descriptor_ref_t {
     return make_ref<attribute_descriptor>();
 }
 
-vertex_buffer::vertex_buffer(void const* data, std::size_t const& bytes, txt::type const& type, txt::usage const& usage)
+vertex_buffer::vertex_buffer(void const* data, std::size_t const& bytes, txt::type const& type, txt::usage const& usage, attribute_descriptions_t const& layout)
     : m_id(0)
     , m_bytes(bytes)
     , m_type(type)
-    , m_usage(usage) {
+    , m_usage(usage)
+    , m_layout(layout) {
     glGenBuffers(1, &m_id);
     glBindBuffer(GL_ARRAY_BUFFER, m_id);
     glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(m_bytes), data, gl_usage(m_usage));
@@ -76,10 +77,11 @@ attribute_descriptor::~attribute_descriptor() {
     glDeleteVertexArrays(1, &m_id);
 }
 
-auto attribute_descriptor::add(vertex_buffer_ref_t buffer, attribute_descriptions_t const& layout) -> void {
+auto attribute_descriptor::add(vertex_buffer_ref_t buffer) -> void {
     glBindVertexArray(m_id);
     buffer->bind();
 
+    auto const& layout = buffer->layout();
     auto const stride = compute_stride(layout);
     std::size_t offset = 0;
     std::for_each(std::begin(layout), std::end(layout), [&](attribute_description const& a) {

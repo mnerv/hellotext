@@ -70,6 +70,7 @@ public:
     ~typeface() = default;
 
     auto filename() const -> std::string const& { return m_filename; }
+    auto size() const -> std::uint32_t { return m_size; }
     auto mode() const -> text_render_mode { return m_mode; }
     auto glyph_size() const -> std::size_t { return m_max_glyph_size; }
     auto glyphs() const -> std::unordered_map<std::uint32_t, glyph> const& { return m_glyphs; }

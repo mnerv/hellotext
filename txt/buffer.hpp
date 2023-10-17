@@ -157,7 +157,7 @@ using attribute_descriptions_t = std::vector<attribute_description>;
 
 class vertex_buffer {
 public:
-    vertex_buffer(void const* data, std::size_t const& bytes, txt::type const& type, txt::usage const& usage);
+    vertex_buffer(void const* data, std::size_t const& bytes, txt::type const& type, txt::usage const& usage, attribute_descriptions_t const& layout);
     ~vertex_buffer();
 
     auto bind()   const -> void;
@@ -167,6 +167,7 @@ public:
     auto bytes() const -> std::size_t { return m_bytes; }
     auto type() const -> txt::type { return m_type; }
     auto usage() const -> txt::usage { return m_usage; }
+    auto layout() const -> attribute_descriptions_t const& { return m_layout; }
 
     auto resize(std::size_t bytes) -> void;
     auto sub(void const* data, std::size_t bytes, std::size_t offset = 0) -> void;
@@ -176,10 +177,11 @@ private:
     std::size_t   m_bytes;
     txt::type     m_type;
     txt::usage    m_usage;
+    attribute_descriptions_t m_layout;
 };
 
 using vertex_buffer_ref_t = ref<vertex_buffer>;
-auto make_vertex_buffer(void const* data, std::size_t const& bytes, txt::type const& type, txt::usage const& usage) -> vertex_buffer_ref_t;
+auto make_vertex_buffer(void const* data, std::size_t const& bytes, txt::type const& type, txt::usage const& usage, attribute_descriptions_t const& layout) -> vertex_buffer_ref_t;
 
 class index_buffer {
 public:
@@ -211,7 +213,7 @@ public:
     attribute_descriptor();
     ~attribute_descriptor();
 
-    auto add(vertex_buffer_ref_t buffer, attribute_descriptions_t const& layout) -> void;
+    auto add(vertex_buffer_ref_t buffer) -> void;
     auto bind()   const -> void;
     auto unbind() const -> void;
 
