@@ -139,8 +139,10 @@ endif()
 
 set(HEADERS
     txt/buffer.hpp
+    txt/event.hpp
     txt/fonts.hpp
     txt/image.hpp
+    txt/input.hpp
     txt/renderer.hpp
     txt/shader.hpp
     txt/text_engine.hpp
@@ -152,6 +154,7 @@ set(SOURCES
     txt/buffer.cpp
     txt/fonts.cpp
     txt/image.cpp
+    txt/input.cpp
     txt/renderer.cpp
     txt/shader.cpp
     txt/text_engine.cpp

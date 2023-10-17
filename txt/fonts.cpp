@@ -6,10 +6,14 @@ typeface::typeface(typeface_props const& props, font_family_weak_t const& font_f
     : m_filename(props.filename)
     , m_family(font_family)
     , m_size(props.size)
-    , m_mode(props.render_mode) {
+    , m_mode(props.render_mode)
+    , m_scale(props.scale) {
     load(props.ranges);
 }
 
+auto typeface::set_scale(double const& scale) -> void {
+    m_scale = scale;
+}
 auto typeface::reload() -> void {
     // Check pointer expirations from weak ptr. We make sure that the object we have is still alive.
     if (m_family.expired()) throw std::runtime_error("Font family has expired!");
@@ -63,7 +67,7 @@ auto typeface::load(character_range_t const& range) -> void {
     else if (m_ft_face == nullptr)
         throw std::runtime_error("Error createing FT_Face!");
 
-    FT_Set_Pixel_Sizes(m_ft_face, 0, m_size);
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(std::round(double(m_size) * m_scale)));
     // Load initial character range
     for (std::uint32_t code = range[0]; code < range[1]; ++code)
         load_glyph(code, ft_library, ft_bitmap);

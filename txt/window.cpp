@@ -241,6 +241,17 @@ auto window::setup_native() -> void {
     // TODO: Check make contet result if it was successful
     m_native = context;
 
+    double width, height;
+    emscripten_get_element_css_size(TARGET_NAME, &width, &height);
+    auto const device_pixel_ratio = emscripten_get_device_pixel_ratio();
+    m_width         = std::uint32_t(width);
+    m_height        = std::uint32_t(height);
+    m_buffer_width  = std::uint32_t(width  * device_pixel_ratio);
+    m_buffer_height = std::uint32_t(height * device_pixel_ratio);
+    m_content_scale_x = device_pixel_ratio;
+    m_content_scale_y = device_pixel_ratio;
+    emscripten_set_canvas_element_size(TARGET_NAME, std::int32_t(m_buffer_width), std::int32_t(m_buffer_height));
+
     // Callbacks
     emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenUiEvent const* uiEvent, void* userData) {
@@ -254,6 +265,8 @@ auto window::setup_native() -> void {
             ptr->m_height        = std::uint32_t(height);
             ptr->m_buffer_width  = std::uint32_t(width  * device_pixel_ratio);
             ptr->m_buffer_height = std::uint32_t(height * device_pixel_ratio);
+            ptr->m_content_scale_x = device_pixel_ratio;
+            ptr->m_content_scale_y = device_pixel_ratio;
             emscripten_set_canvas_element_size(TARGET_NAME, std::int32_t(ptr->m_buffer_width), std::int32_t(ptr->m_buffer_height));
         }
         return EM_FALSE;

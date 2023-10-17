@@ -9,17 +9,18 @@ layout(location = 0, index = 1) out vec4 color_mask;
 #define SDF 2
 
 in vec2 _uv;
-in vec2 _size;
-in vec2 _offset;
+in vec2 _uv_offset;
+in vec2 _uv_size;
 in vec4 _color;
+// in vec2 _scale;
 
-uniform vec2 u_size;
-uniform sampler2D u_texture;
+uniform vec2      u_size    = vec2(1.0);  // Texture size
+uniform sampler2D u_texture = 0;          // Texture slot
 
 void main() {
     vec2 uv = vec2(
-        _uv.x * (_size.x / u_size.x) + (_offset.x / u_size.x),
-        _uv.y * (_size.y / u_size.y) + (_offset.y / u_size.y)
+        _uv.x * (_uv_size.x / u_size.x) + (_uv_offset.x / u_size.x),
+        _uv.y * (_uv_size.y / u_size.y) + (_uv_offset.y / u_size.y)
     );
 
 // #if RENDER_MODE == SUBPIXEL

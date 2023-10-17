@@ -38,7 +38,6 @@ using font_manager_weak_t = weak<font_manager>;
 
 using character_range_t = std::array<std::uint32_t, 2>;
 
-constexpr std::uint32_t default_size = limits<std::uint32_t>::max();
 constexpr character_range_t default_character_range{0, 128};
 
 // I tried to follow the analogy from Google Fonts: Family, type family or font family.
@@ -61,6 +60,7 @@ struct typeface_props {
     std::string       style;
     text_render_mode  render_mode{text_render_mode::normal};
     character_range_t ranges{default_character_range};
+    double            scale{1.0};
 };
 
 // Contains the loaded font and rendered glyph, belongs to font family
@@ -76,6 +76,7 @@ public:
     auto glyphs() const -> std::unordered_map<std::uint32_t, glyph> const& { return m_glyphs; }
     auto channels() const -> std::size_t { return m_channels; }
 
+    auto set_scale(double const& scale) -> void;
     auto reload() -> void;
     auto query(std::uint32_t const& code) -> glyph const&;
 
@@ -89,6 +90,7 @@ private:
     font_family_weak_t m_family;
     std::uint32_t      m_size;
     text_render_mode   m_mode;
+    double             m_scale;
     std::int32_t       m_flags{0x00};
     std::size_t        m_channels{0x00};
     FT_Face            m_ft_face{nullptr};

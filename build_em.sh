@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-preload_files=""
+preload_files="--preload-file ./shaders/webgl --preload-file ./res/fonts/Cozette"
 
 # setup
 if ! [ -d build-web ]; then
@@ -8,7 +8,9 @@ if ! [ -d build-web ]; then
 fi
 
 # copy resources
-cp index.html build-web
+cp ./index.html ./build-web
+cp -rf ./shaders ./build-web
+cp -rf ./res ./build-web
 
 # build
 cmake --build build-web -j

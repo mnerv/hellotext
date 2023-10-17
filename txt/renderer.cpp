@@ -34,13 +34,13 @@ auto end_frame() -> void {
     s_instance->end();
 }
 auto viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void {
-    s_instance->viewport(x, y, width, height);
+    renderer::viewport(x, y, width, height);
 }
 auto clear_color(std::uint32_t color, float alpha) -> void {
-    s_instance->clear_color(color, alpha);
+    renderer::clear_color(color, alpha);
 }
 auto clear(GLenum bitmask) -> void {
-    s_instance->clear(bitmask);
+    renderer::clear(bitmask);
 }
 auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, glm::vec4 const& round) -> void {
     s_instance->rect(position, size, rotation, color, round);
@@ -168,7 +168,7 @@ auto renderer::text(std::string const& str, glm::vec2 const& position, glm::vec4
 }
 
 auto renderer::text_size(std::string const& str, typeface_ref_t const& tf) -> glm::vec2 {
-    return m_text_engine->calc_size(str, tf);
+    return m_text_engine->text_size(str, tf);
 }
 
 auto renderer::load_font(typeface_props const& props) -> typeface_ref_t {
@@ -190,6 +190,7 @@ auto renderer::text_engine() -> text_engine_ref_t {
 }
 
 renderer::renderer(window_ref_t window) : m_window(window) {
+#ifndef __EMSCRIPTEN__
     m_rect_default_shader = make_shader(
         read_text("./shaders/opengl/base.vert"),
         read_text("./shaders/opengl/color.frag")
@@ -198,6 +199,16 @@ renderer::renderer(window_ref_t window) : m_window(window) {
         read_text("./shaders/opengl/base.vert"),
         read_text("./shaders/opengl/texture.frag")
     );
+#else
+    m_rect_default_shader = make_shader(
+        read_text("./shaders/webgl/base.vert"),
+        read_text("./shaders/webgl/color.frag")
+    );
+    m_rect_texture_shader = make_shader(
+        read_text("./shaders/webgl/base.vert"),
+        read_text("./shaders/webgl/texture.frag")
+    );
+#endif
     m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
     m_rect_vertex_buffer = make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::dynamic_draw, {
         {type::vec4, false, 1},
@@ -214,7 +225,6 @@ renderer::renderer(window_ref_t window) : m_window(window) {
     }));
     m_rect_descriptor->add(m_rect_vertex_buffer);
 
-    auto manager = make_ref<font_manager>();
-    m_text_engine = make_ref<txt::text_engine>(manager);
+    m_text_engine = make_ref<txt::text_engine>(m_window, make_ref<font_manager>());
 }
 } // namespace txt

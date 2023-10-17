@@ -134,7 +134,7 @@ auto shader::link(std::uint32_t const& vs, std::uint32_t const& fs) -> std::uint
     glGetProgramiv(program, GL_LINK_STATUS, &is_success);
     if (!is_success) {
         glGetProgramInfoLog(program, LOG_SIZE, nullptr, info_log);
-        auto const err_str = fmt::format("shader link error - ", info_log);
+        auto const err_str = fmt::format("shader link error - {}", info_log);
         throw std::runtime_error(err_str);
     }
 

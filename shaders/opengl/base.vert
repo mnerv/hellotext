@@ -2,10 +2,11 @@
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec2 a_uv;
 
+// Instance
 layout(location = 2) in vec4 a_color;
-layout(location = 3) in vec3 a_tp;
-layout(location = 4) in vec3 a_ts;
-layout(location = 5) in vec3 a_tr;
+layout(location = 3) in vec3 a_tp;  // Transform position
+layout(location = 4) in vec3 a_ts;  // Transform scale
+layout(location = 5) in vec3 a_tr;  // Transform rotation
 layout(location = 6) in vec2 a_uv_offset;
 layout(location = 7) in vec2 a_uv_size;
 
@@ -15,9 +16,9 @@ out vec2 _uv_offset;
 out vec2 _uv_size;
 out vec2 _scale;
 
-uniform mat4 u_model       = mat4(1.0);
-uniform mat4 u_view        = mat4(1.0);
-uniform mat4 u_projection  = mat4(1.0);
+uniform mat4 u_model      = mat4(1.0);
+uniform mat4 u_view       = mat4(1.0);
+uniform mat4 u_projection = mat4(1.0);
 
 void main() {
     _uv        = a_uv;

@@ -10,8 +10,8 @@ layout(location = 0) out vec4 color;
 #define SDF 2
 
 in vec2 _uv;
-in vec2 _size;
-in vec2 _offset;
+in vec2 _uv_offset;
+in vec2 _uv_size;
 in vec4 _color;
 
 uniform vec2 u_size;
@@ -19,8 +19,8 @@ uniform sampler2D u_texture;
 
 void main() {
     vec2 uv = vec2(
-        _uv.x * (_size.x / u_size.x) + (_offset.x / u_size.x),
-        _uv.y * (_size.y / u_size.y) + (_offset.y / u_size.y)
+        _uv.x * (_uv_size.x / u_size.x) + (_uv_offset.x / u_size.x),
+        _uv.y * (_uv_size.y / u_size.y) + (_uv_offset.y / u_size.y)
     );
 
     vec4 color_mask = vec4(0);
