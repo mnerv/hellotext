@@ -14,8 +14,8 @@ in vec2 _uv_size;
 in vec4 _color;
 // in vec2 _scale;
 
-uniform vec2      u_size    = vec2(1.0);  // Texture size
-uniform sampler2D u_texture = 0;          // Texture slot
+uniform vec2      u_size;     // Texture size
+uniform sampler2D u_texture;  // Texture slot
 
 void main() {
     vec2 uv = vec2(

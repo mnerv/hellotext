@@ -13,7 +13,7 @@ constexpr auto gl_texture_internal_format(pixel_fmt value) -> GLint {
         case pixel_fmt::rg:   return GL_RG;
         case pixel_fmt::rgb:  return GL_RGB;
         case pixel_fmt::rgba: return GL_RGBA;
-        default: throw std::runtime_error("Unknown texture format!");
+        default: throw std::runtime_error("Unknown texture internal format!");
     }
 }
 constexpr auto gl_texture_format(pixel_fmt value) -> GLenum {
@@ -33,7 +33,7 @@ constexpr auto gl_texture_wrap(tex_wrap value) -> GLint {
         case tex_wrap::clamp_to_edge:   return GL_CLAMP_TO_EDGE;
         case tex_wrap::clamp_to_border: return GL_CLAMP_TO_BORDER;
         case tex_wrap::mirror_clamp_to_edge: return GL_MIRROR_CLAMP_TO_EDGE;
-        default: return GL_REPEAT;
+        default: throw std::runtime_error("Unknown texture wrap!");
     }
 }
 
@@ -45,7 +45,7 @@ constexpr auto gl_texture_filter(tex_filter value) -> GLint {
         case tex_filter::linear_mipmap_nearest:  return GL_LINEAR_MIPMAP_NEAREST;
         case tex_filter::nearest_mipmap_linear:  return GL_NEAREST_MIPMAP_LINEAR;
         case tex_filter::linear_mipmap_linear:   return GL_LINEAR_MIPMAP_LINEAR;
-        default: return GL_NEAREST;
+        default: throw std::runtime_error("Unknown texture filter!");
     }
 }
 
@@ -55,7 +55,7 @@ constexpr auto infer_format_from_channels(std::size_t channels) -> pixel_fmt {
         case 2:  return pixel_fmt::rg;
         case 3:  return pixel_fmt::rgb;
         case 4:  return pixel_fmt::rgba;
-        default: return pixel_fmt::rgb;
+        default: throw std::runtime_error("Unsupported channel count!");
     }
 }
 
