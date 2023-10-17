@@ -30,6 +30,13 @@ public:
     auto buffer_width() const noexcept -> std::uint32_t;
     auto buffer_height() const noexcept -> std::uint32_t;
     auto should_close() const noexcept -> bool;
+    auto x() const -> double;
+    auto y() const -> double;
+    auto content_scale_x() const -> double;
+    auto content_scale_y() const -> double;
+    auto is_focused() const -> bool;
+    auto is_hovered() const -> bool;
+    auto is_maximized() const -> bool;
 
     auto time() const -> double;
     auto stopwatch() const -> double;
@@ -48,6 +55,15 @@ private:
     std::uint32_t m_buffer_width;
     std::uint32_t m_buffer_height;
     bool          m_should_close{false};
+    double        m_content_scale_x{1.0};
+    double        m_content_scale_y{1.0};
+    std::int32_t  m_position_x{0};
+    std::int32_t  m_position_y{0};
+    bool          m_is_focused{true};
+    bool          m_is_maximized{false};
+    bool          m_is_hovered{false};
+    double        m_mouse_x{0.0};
+    double        m_mouse_y{0.0};
 
 private:
     void* m_native{nullptr};

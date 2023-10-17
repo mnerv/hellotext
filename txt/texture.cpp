@@ -7,6 +7,15 @@
 #endif
 
 namespace txt {
+constexpr auto gl_texture_internal_format(pixel_fmt value) -> GLint {
+    switch (value) {
+        case pixel_fmt::red:  return GL_RED;
+        case pixel_fmt::rg:   return GL_RG;
+        case pixel_fmt::rgb:  return GL_RGB;
+        case pixel_fmt::rgba: return GL_RGBA;
+        default: throw std::runtime_error("Unknown texture format!");
+    }
+}
 constexpr auto gl_texture_format(pixel_fmt value) -> GLenum {
     switch (value) {
         case pixel_fmt::red:  return GL_RED;
@@ -17,7 +26,7 @@ constexpr auto gl_texture_format(pixel_fmt value) -> GLenum {
     }
 }
 
-constexpr auto gl_texture_wrap(tex_wrap value) -> GLenum {
+constexpr auto gl_texture_wrap(tex_wrap value) -> GLint {
     switch (value) {
         case tex_wrap::repeat: return GL_REPEAT;
         case tex_wrap::mirrored_repeat: return GL_MIRRORED_REPEAT;
@@ -28,7 +37,7 @@ constexpr auto gl_texture_wrap(tex_wrap value) -> GLenum {
     }
 }
 
-constexpr auto gl_texture_filter(tex_filter value) -> GLenum {
+constexpr auto gl_texture_filter(tex_filter value) -> GLint {
     switch (value) {
         case tex_filter::nearest: return GL_NEAREST;
         case tex_filter::linear:  return GL_LINEAR;
@@ -96,7 +105,7 @@ auto texture::set(void const* data, std::size_t const& width, std::size_t const&
     m_channels = channels;
 
     glBindTexture(GL_TEXTURE_2D, m_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, gl_texture_format(props.internal), GLsizei(m_width), GLsizei(m_height), 0, gl_texture_format(props.format), gl_type(props.data_type), data);
+    glTexImage2D(GL_TEXTURE_2D, 0, gl_texture_internal_format(props.internal), GLsizei(m_width), GLsizei(m_height), 0, gl_texture_format(props.format), gl_type(props.data_type), data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, gl_texture_wrap(props.wrap_s));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, gl_texture_wrap(props.wrap_t));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_texture_filter(props.min_filter));

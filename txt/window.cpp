@@ -64,6 +64,13 @@ auto window::height() const noexcept -> std::uint32_t { return m_height; }
 auto window::buffer_width() const noexcept -> std::uint32_t { return m_buffer_width; }
 auto window::buffer_height() const noexcept -> std::uint32_t { return m_buffer_height; }
 auto window::should_close() const noexcept -> bool { return m_should_close; }
+auto window::x() const -> double { return m_position_x; }
+auto window::y() const -> double { return m_position_y; }
+auto window::content_scale_x() const -> double { return m_content_scale_x; }
+auto window::content_scale_y() const -> double { return m_content_scale_y; }
+auto window::is_focused() const -> bool { return m_is_focused; }
+auto window::is_hovered() const -> bool { return m_is_hovered; }
+auto window::is_maximized() const -> bool { return m_is_maximized; }
 
 auto window::time() const -> double {
     auto const t = std::chrono::system_clock::now();
@@ -129,6 +136,75 @@ auto window::setup_native() -> void {
         ptr->m_buffer_width  = std::uint32_t(width);
         ptr->m_buffer_height = std::uint32_t(height);
     });
+    glfwSetWindowPosCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t xpos, std::int32_t ypos) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        ptr->m_position_x = xpos;
+        ptr->m_position_y = ypos;
+    });
+    glfwSetWindowFocusCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t focused) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        ptr->m_is_focused = bool(focused);
+    });
+    glfwSetWindowIconifyCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t iconified) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        (void)ptr;
+        (void)iconified;
+    });
+    glfwSetWindowMaximizeCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t maximized) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        ptr->m_is_maximized = bool(maximized);
+    });
+    glfwSetWindowContentScaleCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, float xscale, float yscale) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        ptr->m_content_scale_x = double(xscale);
+        ptr->m_content_scale_y = double(yscale);
+    });
+    glfwSetWindowCloseCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr) {
+        auto ptr = reinterpret_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        ptr->m_should_close = true;
+    });
+    glfwSetCursorPosCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, double xpos, double ypos) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        ptr->m_mouse_x = xpos;
+        ptr->m_mouse_y = ypos;
+    });
+    glfwSetCursorEnterCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t entered) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        glfwGetCursorPos(window_ptr, &ptr->m_mouse_x, &ptr->m_mouse_y);
+        ptr->m_is_hovered = bool(entered);
+    });
+    glfwSetMouseButtonCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t button, std::int32_t action, std::int32_t mods) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        glfwGetCursorPos(window_ptr, &ptr->m_mouse_x, &ptr->m_mouse_y);
+        (void)button;
+        (void)action;
+        (void)mods;
+    });
+    glfwSetScrollCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, double xoffset, double yoffset) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        glfwGetCursorPos(window_ptr, &ptr->m_mouse_x, &ptr->m_mouse_y);
+        (void)xoffset;
+        (void)yoffset;
+    });
+    glfwSetKeyCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t key, std::int32_t code, std::int32_t action, std::int32_t mods) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        (void)ptr;
+        (void)key;
+        (void)code;
+        (void)action;
+        (void)mods;
+    });
+    glfwSetCharCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::uint32_t codepoint) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        (void)ptr;
+        (void)codepoint;
+    });
+    glfwSetDropCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t count, char const** paths) {
+        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        (void)ptr;
+        (void)count;
+        (void)paths;
+    });
 
     std::int32_t width, height;
     glfwGetWindowSize(static_cast<GLFWwindow*>(m_native), &width, &height);
@@ -137,6 +213,10 @@ auto window::setup_native() -> void {
     glfwGetFramebufferSize(static_cast<GLFWwindow*>(m_native), &width, &height);
     m_buffer_width  = std::uint32_t(width);
     m_buffer_height = std::uint32_t(height);
+    float content_scale_x, content_scale_y;
+    glfwGetWindowContentScale(static_cast<GLFWwindow*>(m_native), &content_scale_x, &content_scale_y);
+    m_content_scale_x = double(content_scale_x);
+    m_content_scale_x = double(content_scale_y);
 }
 auto window::clean_native() -> void {
     glfwDestroyWindow(static_cast<GLFWwindow*>(m_native));
@@ -144,6 +224,7 @@ auto window::clean_native() -> void {
 }
 #else
 auto window::setup_native() -> void {
+    static auto const target_name = "#canvas";
     emscripten_set_window_title(m_title.c_str());
     emscripten_set_canvas_element_size(TARGET_NAME, std::int32_t(m_buffer_width), std::int32_t(m_buffer_height));
 
@@ -175,6 +256,82 @@ auto window::setup_native() -> void {
             ptr->m_buffer_height = std::uint32_t(height * device_pixel_ratio);
             emscripten_set_canvas_element_size(TARGET_NAME, std::int32_t(ptr->m_buffer_width), std::int32_t(ptr->m_buffer_height));
         }
+        return EM_FALSE;
+    });
+    emscripten_set_focus_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenFocusEvent const*, void* userData) {
+        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
+        return EM_FALSE;
+    });
+    emscripten_set_blur_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenFocusEvent const*, void* userData) {
+        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
+        return EM_FALSE;
+    });
+    emscripten_set_mousemove_callback(target_name, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenMouseEvent const* mouseEvent, void *userData) {
+        auto ptr = static_cast<window*>(userData);
+        auto const x = double(mouseEvent->clientX);
+        auto const y = double(mouseEvent->clientY);
+        ptr->m_mouse_x = x;
+        ptr->m_mouse_y = y;
+        return EM_FALSE;
+    });
+    emscripten_set_mousedown_callback(target_name, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenMouseEvent const* mouseEvent, void *userData) {
+        auto ptr = static_cast<window*>(userData);
+        ptr->m_mouse_x = double(mouseEvent->clientX);
+        ptr->m_mouse_y = double(mouseEvent->clientY);
+        return EM_FALSE;
+    });
+    emscripten_set_mouseup_callback(target_name, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenMouseEvent const* mouseEvent, void *userData) {
+        auto ptr = static_cast<window*>(userData);
+        ptr->m_mouse_x = double(mouseEvent->clientX);
+        ptr->m_mouse_y = double(mouseEvent->clientY);
+        return EM_FALSE;
+    });
+    emscripten_set_wheel_callback(target_name, this, EM_FALSE,
+    [](int, EmscriptenWheelEvent const* wheelEvent, void *userData) {
+        auto ptr = static_cast<window*>(userData);
+        (void)ptr;
+        (void)wheelEvent;
+        return EM_FALSE;
+    });
+    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenKeyboardEvent const* keyEvent, void *userData) {
+        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
+        // TODO: Handle key down
+        return EM_FALSE;
+    });
+    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenKeyboardEvent const* keyEvent, void *userData) {
+        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
+        // TODO: Handle key up
+        return EM_FALSE;
+    });
+    // Touch Events
+    emscripten_set_touchstart_callback(target_name, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
+        auto ptr = static_cast<window*>(userData);
+        (void)ptr;
+        return EM_FALSE;
+    });
+    emscripten_set_touchmove_callback(target_name, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
+        auto ptr = static_cast<window*>(userData);
+        (void)ptr;
+        return EM_FALSE;
+    });
+    emscripten_set_touchend_callback(target_name, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
+        auto ptr = static_cast<window*>(userData);
+        (void)ptr;
+        return EM_FALSE;
+    });
+    emscripten_set_touchcancel_callback(target_name, this, EM_FALSE,
+    [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
+        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
         return EM_FALSE;
     });
 }
@@ -212,7 +369,7 @@ auto loop(window_ref_t window, loop_dt_t fn) -> void {
     }
 #else
     emscripten_set_main_loop([] {
-        auto const now = window->stopwatch();
+        auto const now = _window->stopwatch();
         auto const delta = now - previous_time;
         previous_time = now;
         _fn(delta);

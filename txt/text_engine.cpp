@@ -121,7 +121,7 @@ auto text_engine::end() -> void {
 
 auto text_engine::batch::push(glyph const& gh, glm::vec3 const& position, glm::vec4 const& color) -> void {
     auto const& code_uv = code_uvs.at(gh.codepoint);
-    auto const xpos = float(gh.bearing_left + position.x);
+    auto const xpos = float(gh.bearing_left) + position.x;
     auto const ypos = -(float(gh.bitmap->height()) - float(gh.bearing_top) - position.y);
     auto const w = float(gh.bitmap->width());
     auto const h = float(gh.bitmap->height());

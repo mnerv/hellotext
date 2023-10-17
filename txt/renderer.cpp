@@ -14,10 +14,6 @@ static constexpr float QUAD_VERTICES[]{
      0.5,  0.5,  0.0,   1.0, 1.0,
      0.5, -0.5,  0.0,   1.0, 0.0,
 };
-static constexpr std::initializer_list<attribute_description> QUAD_LAYOUT{
-    {txt::type::vec3, 0},  // position
-    {txt::type::vec2, 0},  // uv
-};
 static constexpr std::uint32_t QUAD_INDICES_CW[]{
     0, 1, 2,
     0, 2, 3,

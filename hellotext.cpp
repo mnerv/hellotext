@@ -10,33 +10,36 @@
 
 static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> void {
     auto window = txt::make_window({"Hello, Text!"});
-    txt::renderer::init(window);
-    auto roboto = txt::renderer::instance()->load_font({
-        .filename = "./res/fonts/RobotoMono/RobotoMonoNerdFontMono-Medium.ttf",
-        .size     = 13,
-        .family   = "Roboto Mono Nerd Font Mono",
-        .style    = "Medium"
-    });
-    auto sfmono = txt::renderer::instance()->load_font({
-        .filename = "res/fonts/SFMono/SFMono Semibold Nerd Font Complete.otf",
-        .size     = 11,
-        .family   = "SF Mono",
-        .style    = "Semibold"
-    });
+    // txt::renderer::init(window);
+    // auto roboto = txt::renderer::instance()->load_font({
+    //     .filename = "./res/fonts/RobotoMono/RobotoMonoNerdFontMono-Medium.ttf",
+    //     .size     = 13,
+    //     .family   = "Roboto Mono Nerd Font Mono",
+    //     .style    = "Medium"
+    // });
+    // auto sfmono = txt::renderer::instance()->load_font({
+    //     .filename = "res/fonts/SFMono/SFMono Semibold Nerd Font Complete.otf",
+    //     .size     = 11,
+    //     .family   = "SF Mono",
+    //     .style    = "Semibold"
+    // });
 
     // auto texture = txt::make_texture(txt::load_image_rgba("./nurture.jpg"));
 
     txt::loop(window, [&] (double){
-        txt::begin_frame();
-        txt::viewport(0, 0, window->buffer_width(), window->buffer_height());
-        txt::clear_color(0x000000);
-        txt::clear();
+        glViewport(0, 0, std::int32_t(window->buffer_width()), std::int32_t(window->buffer_height()));
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // txt::begin_frame();
+        // txt::viewport(0, 0, window->buffer_width(), window->buffer_height());
+        // txt::clear_color(0x000000);
+        // txt::clear();
 
-        txt::text("Hello, World!", {0.0f, float(window->height())});
-        txt::text("Oh no!", {float(window->width()) / 2.0f, float(window->height()) / 2.0f + 16.0f}, glm::vec4{1.0f, 1.0f, 0.0f, 1.0f}, roboto);
-        txt::text("wow", {float(window->width()) / 2.0f, float(window->height()) / 2.0f + 32.0f}, glm::vec4{1.0f, 0.0f, 0.0f, 1.0f}, sfmono);
+        // txt::text("Hello, World!", {0.0f, float(window->height())});
+        // txt::text("Oh no!", {float(window->width()) / 2.0f, float(window->height()) / 2.0f + 16.0f}, glm::vec4{1.0f, 1.0f, 0.0f, 1.0f}, roboto);
+        // txt::text("wow", {float(window->width()) / 2.0f, float(window->height()) / 2.0f + 32.0f}, glm::vec4{1.0f, 0.0f, 0.0f, 1.0f}, sfmono);
 
-        txt::end_frame();
+        // txt::end_frame();
 
         window->swap();
         window->poll();
