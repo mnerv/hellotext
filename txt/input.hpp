@@ -304,5 +304,39 @@ enum class scancode : std::uint16_t {
     // Reserve from 0xE8 to 0xFFFF
     reserved_end = 0xE8
 };
+
+class modifier_flags {
+public:
+    enum class flag : std::uint32_t {
+        alpha_shift = 0,
+        shift       = 1,
+        control     = 2,
+        alternative = 3,
+        super       = 4,
+        caps_lock   = 5,
+        num_lock    = 6,
+    };
+
+public:
+    modifier_flags(std::uint32_t const& flags) : m_flags(flags) {}
+    ~modifier_flags() = default;
+
+    [[nodiscard]]auto alpha_shift() const -> bool { return flag_state(flag::alpha_shift); }
+    [[nodiscard]]auto shift() const -> bool { return flag_state(flag::shift); }
+    [[nodiscard]]auto control() const -> bool { return flag_state(flag::control); }
+    [[nodiscard]]auto alternative() const -> bool { return flag_state(flag::alternative); }
+    [[nodiscard]]auto super() const -> bool { return flag_state(flag::super); }
+    [[nodiscard]]auto caps_lock() const -> bool { return flag_state(flag::caps_lock); }
+    [[nodiscard]]auto num_lock() const -> bool { return flag_state(flag::num_lock); }
+    [[nodiscard]]auto raw() const -> std::uint32_t { return m_flags; }
+
+private:
+    auto flag_state(flag const& index) const -> bool {
+        return static_cast<bool>((m_flags >> std::uint32_t(index)) & 0x1);
+    }
+
+private:
+    std::uint32_t m_flags{0x00};
+};
 }
 #endif  // TXT_INPUT_HPP

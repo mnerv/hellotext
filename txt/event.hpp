@@ -414,10 +414,10 @@ public:
 
 class mouse_down_event : public mouse_event {
 public:
-    mouse_down_event(std::int32_t const& button, std::int32_t const& mods,
+    mouse_down_event(std::int32_t const& button, modifier_flags const& modifiers,
                      double const& x, double const& y)
         : mouse_event(event_type::mouse_down, x, y),
-            m_button(button), m_mods(mods) {}
+          m_button(button), m_mods(modifiers) {}
 
     [[nodiscard]]auto name() const -> char const* override {
         return "mouse_down_event";
@@ -428,26 +428,26 @@ public:
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
         str += "button: " + std::to_string(m_button) + ", ";
-        str += "mods: "   + std::to_string(m_mods)   + ", ";
+        str += "mods: "   + std::to_string(m_mods.raw())   + ", ";
         str += "x: " + std::to_string(m_x) + ", ";
         str += "y: " + std::to_string(m_y) + " }";
         return str;
     }
 
     [[nodiscard]]auto button() const -> std::int32_t { return m_button; }
-    [[nodiscard]]auto mods() const -> std::int32_t { return m_mods; }
+    [[nodiscard]]auto modifiers() const -> modifier_flags const& { return m_mods; }
 
 private:
-    std::int32_t m_button;
-    std::int32_t m_mods;
+    std::int32_t   m_button;
+    modifier_flags m_mods;
 };
 
 class mouse_up_event : public mouse_event {
 public:
-    mouse_up_event(std::int32_t const& button, std::int32_t const& mods,
+    mouse_up_event(std::int32_t const& button, modifier_flags const& modifiers,
                         double const& x, double const& y)
             : mouse_event(event_type::mouse_up, x, y),
-              m_button(button), m_mods(mods) {}
+              m_button(button), m_mods(modifiers) {}
 
     [[nodiscard]]auto name() const -> char const* override {
         return "mouse_up_event";
@@ -458,18 +458,18 @@ public:
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
         str += "button: " + std::to_string(m_button) + ", ";
-        str += "mods: "   + std::to_string(m_mods)   + ", ";
+        str += "mods: "   + std::to_string(m_mods.raw())   + ", ";
         str += "x: " + std::to_string(m_x) + ", ";
         str += "y: " + std::to_string(m_y) + " }";
         return str;
     }
 
     [[nodiscard]]auto button() const -> std::int32_t { return m_button; }
-    [[nodiscard]]auto mods() const -> std::int32_t { return m_mods; }
+    [[nodiscard]]auto mods() const -> modifier_flags const& { return m_mods; }
 
 protected:
-    std::int32_t m_button;
-    std::int32_t m_mods;
+    std::int32_t   m_button;
+    modifier_flags m_mods;
 };
 
 class mouse_wheel_event : public mouse_event {
@@ -541,7 +541,7 @@ public:
 
 class key_event : public event {
 public:
-    key_event(event_type const& type, txt::keycode const& keycode, txt::scancode const& scancode, std::uint32_t const& modifiers)
+    key_event(event_type const& type, txt::keycode const& keycode, txt::scancode const& scancode, modifier_flags const& modifiers)
         : event(type, event_category::keyboard)
         , m_keycode(keycode)
         , m_scancode(scancode)
@@ -554,23 +554,23 @@ public:
                             event_time_point_ms(m_timepoint),
                             std::uint32_t(m_keycode),
                             std::uint16_t(m_scancode),
-                            m_modifiers);
+                            m_modifiers.raw());
         return str;
     }
 
     [[nodiscard]]auto keycode() const -> txt::keycode { return m_keycode; }
     [[nodiscard]]auto scancode() const -> txt::scancode { return m_scancode; }
-    [[nodiscard]]auto modifiers() const -> std::uint32_t { return m_modifiers; }
+    [[nodiscard]]auto modifiers() const -> modifier_flags const& { return m_modifiers; }
 
 protected:
-    txt::keycode  m_keycode;
-    txt::scancode m_scancode;
-    std::uint32_t m_modifiers;
+    txt::keycode   m_keycode;
+    txt::scancode  m_scancode;
+    modifier_flags m_modifiers;
 };
 
 class key_down_event : public key_event {
 public:
-    key_down_event(txt::keycode const& keycode, txt::scancode const& scancode, std::uint32_t const& modifiers)
+    key_down_event(txt::keycode const& keycode, txt::scancode const& scancode, modifier_flags const& modifiers)
         : key_event(event_type::key_down, keycode, scancode, modifiers) {}
 
     [[nodiscard]]auto name() const -> char const* override {
@@ -580,7 +580,7 @@ public:
 
 class key_up_event : public key_event {
 public:
-    key_up_event(txt::keycode const& keycode, txt::scancode const& scancode, std::uint32_t const& modifiers)
+    key_up_event(txt::keycode const& keycode, txt::scancode const& scancode, modifier_flags const& modifiers)
         : key_event(event_type::key_down, keycode, scancode, modifiers) {}
 
     [[nodiscard]]auto name() const -> char const* override {
