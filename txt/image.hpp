@@ -14,7 +14,8 @@ template <typename T>
 class image {
 public:
     using pointer_type = T*;
-    using pixel_type   = std::array<T, 4>;
+    template <std::size_t C>
+    using pixel_type   = std::array<T, C>;
 
 public:
     image(std::size_t width, std::size_t height, std::size_t channels = 3)
@@ -52,11 +53,17 @@ public:
     }
 
     auto resize(std::size_t width, std::size_t height) -> void {
+        if (width == m_height && height == m_height) {
+            std::memset(m_buffer, 0x00, m_size * sizeof(T));
+            return;
+        }
+
         delete[] m_buffer;
         m_width  = width;
         m_height = height;
         m_size   = m_width * m_height * m_channels;
         m_buffer = new T[m_size];
+        std::memset(m_buffer, 0x00, m_size * sizeof(T));
     }
     auto width() const noexcept -> std::size_t { return m_width; }
     auto height() const noexcept -> std::size_t { return m_height; }
@@ -64,18 +71,21 @@ public:
     auto size() const noexcept -> std::size_t { return m_size; }
     auto bytes() const noexcept -> std::size_t { return m_size * sizeof(T); }
     auto data() const noexcept -> T const* { return m_buffer; }
-    auto pixel(std::size_t x, std::size_t y) const noexcept -> pixel_type {
-        pixel_type color{};
+
+    template <std::size_t Channels = 4>
+    auto pixel(std::size_t x, std::size_t y) const noexcept -> pixel_type<Channels> {
+        pixel_type<Channels> color{};
         if (!is_valid_range(x, y)) return color;
         auto const index = pixel_index(x, y);
-        for (std::size_t i = 0; i < m_channels; ++i)
+        for (std::size_t i = 0; i < m_channels && i < Channels; ++i)
             color[i] = m_buffer[index + i];
         return color;
     }
-    auto set(std::size_t x, std::size_t y, pixel_type const& color) noexcept -> void {
+    template <std::size_t Channels = 3>
+    auto set(std::size_t x, std::size_t y, pixel_type<Channels> const& color) noexcept -> void {
         if (!is_valid_range(x, y)) return;
         auto const index = pixel_index(x, y);
-        for (std::size_t i = 0; i < m_channels; ++i)
+        for (std::size_t i = 0; i < m_channels && i < Channels; ++i)
             m_buffer[index + i] = color[i];
     }
 

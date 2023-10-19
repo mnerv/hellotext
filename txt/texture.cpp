@@ -9,7 +9,7 @@
 namespace txt {
 constexpr auto gl_texture_internal_format(pixel_fmt value) -> GLint {
     switch (value) {
-        case pixel_fmt::red:  return GL_RED;
+        case pixel_fmt::red:  return GL_R8;
         case pixel_fmt::rg:   return GL_RG;
         case pixel_fmt::rgb:  return GL_RGB;
         case pixel_fmt::rgba: return GL_RGBA;
@@ -64,7 +64,7 @@ auto make_texture(void const* data, std::size_t const& width, std::size_t const&
 }
 auto make_texture(image_u8_ref_t img, texture_props const& props) -> texture_ref_t {
     return make_texture(img->data(), img->width(), img->height(), img->channels(), {
-        .internal = props.internal,
+        .internal = infer_format_from_channels(img->channels()),
         .format   = infer_format_from_channels(img->channels()),
         .min_filter = props.min_filter,
         .mag_filter = props.mag_filter,
@@ -89,7 +89,7 @@ texture::~texture() {
 
 auto texture::set(image_u8_ref_t img, texture_props const& props) -> void {
     set(img->data(), img->width(), img->height(), img->channels(), {
-        .internal = props.internal,
+        .internal = infer_format_from_channels(img->channels()),
         .format   = infer_format_from_channels(img->channels()),
         .min_filter = props.min_filter,
         .mag_filter = props.mag_filter,

@@ -23,6 +23,7 @@ void main() {
         _uv.y * (_uv_size.y / u_size.y) + (_uv_offset.y / u_size.y)
     );
 
+
 // #if RENDER_MODE == SUBPIXEL
 //     vec4 s = texture(u_texture, uv);  // Texture sample
 //     color = _color;

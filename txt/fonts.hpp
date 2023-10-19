@@ -60,7 +60,6 @@ struct typeface_props {
     std::string       style;
     text_render_mode  render_mode{text_render_mode::normal};
     character_range_t ranges{default_character_range};
-    double            scale{1.0};
 };
 
 // Contains the loaded font and rendered glyph, belongs to font family
@@ -75,12 +74,17 @@ public:
     auto glyph_size() const -> std::size_t { return m_max_glyph_size; }
     auto glyphs() const -> std::unordered_map<std::uint32_t, glyph> const& { return m_glyphs; }
     auto channels() const -> std::size_t { return m_channels; }
+    auto family_name() const -> std::string const& { return m_family_name; }
 
-    auto set_scale(double const& scale) -> void;
+    auto set_size(std::uint32_t const& size) -> void;
+    auto set_mode(text_render_mode const& mode) -> void;
+
     auto reload() -> void;
     auto query(std::uint32_t const& code) -> glyph const&;
 
 private:
+    [[nodiscard]]auto retrieve_ft() -> std::pair<FT_Library, FT_Bitmap*>;
+    auto init_rendering_mode(FT_Library library) -> void;
     auto load(character_range_t const& range = default_character_range) -> void;
     auto load_glyph(std::uint32_t const& code) -> void;
     auto load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void;
@@ -90,7 +94,7 @@ private:
     font_family_weak_t m_family;
     std::uint32_t      m_size;
     text_render_mode   m_mode;
-    double             m_scale;
+    std::string        m_family_name;
     std::int32_t       m_flags{0x00};
     std::size_t        m_channels{0x00};
     FT_Face            m_ft_face{nullptr};

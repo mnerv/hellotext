@@ -24,21 +24,17 @@ void main() {
     _color     = a_color;
     _uv_offset = a_uv_offset;
     _uv_size   = a_uv_size;
-    // _scale     = a_ts.xy;
 
-    mat4 model = mat4(1.0);
-    // Translation
-    model = transpose(mat4(
+    mat4 model = transpose(mat4(
         vec4(1.0, 0.0, 0.0, a_tp.x),
         vec4(0.0, 1.0, 0.0, a_tp.y),
         vec4(0.0, 0.0, 1.0, a_tp.z),
         vec4(0.0, 0.0, 0.0, 1.0)
     ));
-    // Scale
     model *= transpose(mat4(
-        vec4(a_ts.x, 0.0, 0.0, 0.0),
-        vec4(0.0, a_ts.y, 0.0, 0.0),
-        vec4(0.0, 0.0, a_ts.z, 0.0),
+        vec4(_uv_size.x * a_ts.x, 0.0, 0.0, 0.0),
+        vec4(0.0, _uv_size.y * a_ts.y, 0.0, 0.0),
+        vec4(0.0, 0.0, 1.0, 0.0),
         vec4(0.0, 0.0, 0.0, 1.0)
     ));
 

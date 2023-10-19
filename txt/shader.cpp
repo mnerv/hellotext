@@ -40,7 +40,7 @@ auto shader::upload_num([[maybe_unused]]std::string const& name, [[maybe_unused]
 #ifndef __EMSCRIPTEN__
     glUniform1ui(uniform_location(name), value);
 #else
-    glUniform1i(uniform_location(name), std::int32_t(value));
+    glUniform1f(uniform_location(name), float(value));
 #endif
 }
 auto shader::upload_num(std::string const& name, std::int32_t const& value) -> void {
