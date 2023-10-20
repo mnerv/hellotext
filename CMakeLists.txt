@@ -138,6 +138,9 @@ if (NOT EMSCRIPTEN)
 endif()
 
 set(HEADERS
+    demos/app.hpp
+    demos/text_bounce.hpp
+
     txt/buffer.hpp
     txt/event.hpp
     txt/fonts.hpp

@@ -55,6 +55,45 @@ auto text_size(std::string const& str, glm::vec2 const& scale, typeface_ref_t co
     return s_instance->text_size(str, scale, typeface);
 }
 
+renderer::renderer(window_ref_t window) : m_window(window) {
+#ifndef __EMSCRIPTEN__
+    m_rect_default_shader = make_shader(
+        read_text("./shaders/opengl/base.vert"),
+        read_text("./shaders/opengl/color.frag")
+    );
+    m_rect_texture_shader = make_shader(
+        read_text("./shaders/opengl/base.vert"),
+        read_text("./shaders/opengl/texture.frag")
+    );
+#else
+    m_rect_default_shader = make_shader(
+        read_text("./shaders/webgl/base.vert"),
+        read_text("./shaders/webgl/color.frag")
+    );
+    m_rect_texture_shader = make_shader(
+        read_text("./shaders/webgl/base.vert"),
+        read_text("./shaders/webgl/texture.frag")
+    );
+#endif
+    m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
+    m_rect_vertex_buffer = make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::dynamic_draw, {
+        {type::vec4, false, 1},
+        {type::vec3, false, 1},
+        {type::vec3, false, 1},
+        {type::vec3, false, 1},
+        {type::vec2, false, 1},
+        {type::vec2, false, 1}
+    });
+    m_rect_descriptor = make_attribute_descriptor();
+    m_rect_descriptor->add(make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::static_draw, {
+        {type::vec3, false, 0},
+        {type::vec2, false, 0},
+    }));
+    m_rect_descriptor->add(m_rect_vertex_buffer);
+
+    m_text_engine = make_ref<txt::text_engine>(m_window, make_ref<font_manager>());
+}
+renderer::~renderer() { }
 auto renderer::begin() -> void {
     m_view = glm::lookAt(glm::vec3{0.0, 0.0, 1023.0}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
     m_projection = glm::ortho(0.0f, float(m_window->width()), 0.0f, float(m_window->height()), 0.1f, 1024.0f);
@@ -188,44 +227,5 @@ auto renderer::fonts() -> font_manager_ref_t {
 }
 auto renderer::text_engine() -> text_engine_ref_t {
     return m_text_engine;
-}
-
-renderer::renderer(window_ref_t window) : m_window(window) {
-#ifndef __EMSCRIPTEN__
-    m_rect_default_shader = make_shader(
-        read_text("./shaders/opengl/base.vert"),
-        read_text("./shaders/opengl/color.frag")
-    );
-    m_rect_texture_shader = make_shader(
-        read_text("./shaders/opengl/base.vert"),
-        read_text("./shaders/opengl/texture.frag")
-    );
-#else
-    m_rect_default_shader = make_shader(
-        read_text("./shaders/webgl/base.vert"),
-        read_text("./shaders/webgl/color.frag")
-    );
-    m_rect_texture_shader = make_shader(
-        read_text("./shaders/webgl/base.vert"),
-        read_text("./shaders/webgl/texture.frag")
-    );
-#endif
-    m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
-    m_rect_vertex_buffer = make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::dynamic_draw, {
-        {type::vec4, false, 1},
-        {type::vec3, false, 1},
-        {type::vec3, false, 1},
-        {type::vec3, false, 1},
-        {type::vec2, false, 1},
-        {type::vec2, false, 1}
-    });
-    m_rect_descriptor = make_attribute_descriptor();
-    m_rect_descriptor->add(make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::static_draw, {
-        {type::vec3, false, 0},
-        {type::vec2, false, 0},
-    }));
-    m_rect_descriptor->add(m_rect_vertex_buffer);
-
-    m_text_engine = make_ref<txt::text_engine>(m_window, make_ref<font_manager>());
 }
 } // namespace txt

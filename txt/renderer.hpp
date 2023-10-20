@@ -35,6 +35,20 @@ auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotatio
 auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color = glm::vec4{1.0f}, glm::vec2 const& scale = glm::vec2{1.0f}, typeface_ref_t const& tf = nullptr) -> void;
 auto text_size(std::string const& str, glm::vec2 const& scale = glm::vec2{1.0f}, typeface_ref_t const& typeface = nullptr) -> glm::vec2;
 
+/**
+ * Convert HSB value to RGB.
+ * @param hue        - Hue value with range [0, 360]
+ * @param saturation - Saturation value with range [0, 1]
+ * @param brightness - Brightness value with range [0, 1]
+ * @return RGB with range [0, 1]
+*/
+inline constexpr auto hsb2rgb(float hue, float saturation, float brightness) -> glm::vec3 {
+    auto const h = hue / 360.0f;
+    auto rgb = glm::clamp(glm::abs(glm::mod(h * 6.0f + glm::vec3(0.0f, 4.0f, 2.0f), 6.0f) - 3.0f) - 1.0f, 0.0f, 1.0f);
+    rgb = rgb * rgb * (3.0f - 2.0f * rgb);
+    return brightness * glm::mix(glm::vec3(1.0f), rgb, saturation);
+}
+
 struct rect_instance {
     glm::vec4 color{0.0f};
     glm::vec3 position{0.0f};
@@ -68,14 +82,14 @@ struct shader_texture_pair {
 };
 
 class renderer {
-   public:
+public:
     using local_t = std::unique_ptr<renderer>;
     static auto init(window_ref_t window) -> void;
     static auto instance() -> local_t&;
 
-   public:
+public:
     renderer(window_ref_t window);
-    ~renderer() = default;
+    ~renderer();
 
     auto begin() -> void;
     auto end() -> void;
@@ -107,15 +121,13 @@ class renderer {
 
     std::size_t m_color_rect_size{0};
     std::vector<rect_instance> m_color_rects{};
-    std::unordered_map<shader_texture_pair, std::vector<rect_instance>,
-                       shader_texture_pair::hash>
-        m_shader_texture_rects{};
+    std::unordered_map<shader_texture_pair, std::vector<rect_instance>, shader_texture_pair::hash> m_shader_texture_rects{};
 
-   private:
+private:
     float m_depth{0.0f};
     float m_depth_step{0.1f};
 
-   private:
+private:
     glm::mat4 m_model{1.0f};
     glm::mat4 m_view{1.0f};
     glm::mat4 m_projection{1.0f};

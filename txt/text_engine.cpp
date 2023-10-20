@@ -233,6 +233,7 @@ auto text_engine::text_size(std::string const& str, glm::vec2 const& scale, type
 
 auto text_engine::reload() -> void {
     m_manager->reload();
+    m_batches.clear();
     for (auto const& [name, family] : m_manager->families()) {
         for (auto const& [style, typeface] : family->typefaces()) {
             m_batches.insert_or_assign(typeface, text_batch{typeface});
