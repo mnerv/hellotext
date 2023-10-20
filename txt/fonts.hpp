@@ -60,6 +60,7 @@ struct typeface_props {
     std::string       style;
     text_render_mode  render_mode{text_render_mode::normal};
     character_range_t ranges{default_character_range};
+    double            scale{1.0};
 };
 
 // Contains the loaded font and rendered glyph, belongs to font family
@@ -70,6 +71,7 @@ public:
 
     auto filename() const -> std::string const& { return m_filename; }
     auto size() const -> std::uint32_t { return m_size; }
+    auto scale() const -> double { return m_scale; }
     auto mode() const -> text_render_mode { return m_mode; }
     auto glyph_size() const -> std::size_t { return m_max_glyph_size; }
     auto glyphs() const -> std::unordered_map<std::uint32_t, glyph> const& { return m_glyphs; }
@@ -77,6 +79,7 @@ public:
     auto family_name() const -> std::string const& { return m_family_name; }
 
     auto set_size(std::uint32_t const& size) -> void;
+    auto set_scale(double const& scale) -> void;
     auto set_mode(text_render_mode const& mode) -> void;
 
     auto reload() -> void;
@@ -95,6 +98,7 @@ private:
     std::uint32_t      m_size;
     text_render_mode   m_mode;
     std::string        m_family_name;
+    double             m_scale;
     std::int32_t       m_flags{0x00};
     std::size_t        m_channels{0x00};
     FT_Face            m_ft_face{nullptr};

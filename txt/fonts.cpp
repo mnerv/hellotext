@@ -7,13 +7,18 @@ typeface::typeface(typeface_props const& props, font_family_weak_t const& font_f
     , m_family(font_family)
     , m_size(props.size)
     , m_mode(props.render_mode)
-    , m_family_name(props.family) {
+    , m_family_name(props.family)
+    , m_scale(props.scale) {
     load(props.ranges);
 }
 
 auto typeface::set_size(std::uint32_t const& size) -> void {
     m_size = size;
-    FT_Set_Pixel_Sizes(m_ft_face, 0, m_size);
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_size) * m_scale));
+}
+auto typeface::set_scale(double const& scale) -> void {
+    m_scale = scale;
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_size) * m_scale));
 }
 auto typeface::set_mode(text_render_mode const& mode) -> void {
     m_mode = mode;
@@ -22,6 +27,7 @@ auto typeface::set_mode(text_render_mode const& mode) -> void {
 auto typeface::reload() -> void {
     auto const [ft_library, ft_bitmap] = retrieve_ft();
     init_rendering_mode(ft_library);
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_size) * m_scale));
 
     m_max_glyph_size = 0;
     for (auto const& [code, glyph] : m_glyphs)
@@ -74,7 +80,7 @@ auto typeface::load(character_range_t const& range) -> void {
     else if (m_ft_face == nullptr)
         throw std::runtime_error("Error createing FT_Face!");
 
-    FT_Set_Pixel_Sizes(m_ft_face, 0, m_size);
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(m_size * m_scale));
     // Load initial character range
     for (std::uint32_t code = range[0]; code < range[1]; ++code)
         load_glyph(code, ft_library, ft_bitmap);

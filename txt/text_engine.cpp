@@ -147,16 +147,14 @@ text_engine::text_engine(window_ref_t window, font_manager_ref_t manager) : m_wi
     m_shader_normal = make_shader(vs, fs);
 }
 auto text_engine::load(typeface_props const props) -> void {
-    auto size = props.size;
-    if (props.render_mode != text_render_mode::raster)
-        size = std::uint32_t(size * m_window->content_scale_x());
     m_manager->load({
         .filename = props.filename,
-        .size     = size,
+        .size     = props.size,
         .family   = props.family,
         .style    = props.style,
         .render_mode = props.render_mode,
         .ranges      = props.ranges,
+        .scale       = props.render_mode == text_render_mode::raster ? 1.0 : m_window->content_scale_x()
     });
 }
 
