@@ -23,7 +23,7 @@ jobs:
 
     - name: Build emscripten using docker image
       run: |
-        docker run --rm -v "$(pwd):/src" emscripten/emsdk sh ./build_em.sh
+        docker run --rm -v "$(pwd):/src" emscripten/emsdk sh ./build_em.sh --production
 
     - name: Upload site artifact
       uses: actions/upload-pages-artifact@v2

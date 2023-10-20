@@ -17,13 +17,16 @@ while [ $# -gt 0 ]; do  # Check if total number of args is greater than 0
         --regen)
             is_regen=true
             ;;
+        --production)
+            is_production=true
+            ;;
     esac
     # Shift the arguments to the left
     shift 
 done
 
 # Setup
-if ! [ -d build-web ] || [ "is_regen" = true ]; then
+if ! [ -d build-web ] || [ "$is_regen" = true ] || [ "$is_production" = true ]; then
     emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="${preload_files}"
 fi
 
@@ -34,9 +37,15 @@ cp -rf ./shaders ./build-web
 cp -rf ./res/fonts/Cozette ./build-web/res/fonts
 
 # Clean
-if [ "$is_rebuild" = true ]; then
+if [ "$is_rebuild" = true ] || [ "$is_production" = true ]; then
     cmake --build build-web --target clean
 fi
 
 # Build
 cmake --build build-web -j
+
+if [ "$is_production" = true ]; then
+    rm -rf dist && mkdir -p dist
+    cp -rf ./build-web/hellotext.* ./dist
+    cp -rf ./build-web/index.html ./dist
+fi
