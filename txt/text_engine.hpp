@@ -34,6 +34,7 @@ public:
     auto texture() const -> texture_ref_t const& { return m_texture; }
     auto bitmap() const -> image_u8_ref_t const& { return m_atlas; }
     auto max_delta_origin_ymin() const -> std::int32_t { return m_max_delta_origin_ymin; }
+    auto max_bearing_left() const -> std::int32_t { return m_max_bearing_left; }
     auto max_bearing_top() const -> std::int32_t { return m_max_bearing_top; }
     auto generate_atlas() -> void;
     auto reset() -> void;
@@ -53,6 +54,7 @@ private:
     texture_ref_t m_texture{nullptr};
     std::int32_t  m_max_delta_origin_ymin{0};
     std::int32_t  m_max_bearing_top{0};
+    std::int32_t  m_max_bearing_left{0};
 };
 
 class text_engine {

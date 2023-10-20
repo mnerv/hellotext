@@ -29,7 +29,6 @@ auto typeface::reload() -> void {
 }
 auto typeface::query(std::uint32_t const& code) -> glyph const& {
     auto it = m_glyphs.find(code);
-    // FIXME: Try to load the glyph if not found
     if (it == std::end(m_glyphs)) {
         load_glyph(code);
         it = m_glyphs.find(code);

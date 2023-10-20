@@ -22,11 +22,13 @@ text_batch::text_batch(typeface_ref_t typeface) : m_typeface(typeface) {
 auto text_batch::generate_atlas() -> void {
     resize_atlas();
     m_max_delta_origin_ymin = 0;
+    m_max_bearing_left      = 0;
     m_max_bearing_top       = 0;
     for (auto const& [code, glyph] : m_typeface->glyphs()) {
         insert_bitmap(glyph);
         m_max_delta_origin_ymin = std::max(std::int32_t(glyph.bitmap->height()) - glyph.bearing_top, m_max_delta_origin_ymin);
-        m_max_bearing_top = std::max(glyph.bearing_top, m_max_bearing_top);
+        m_max_bearing_left = std::max(glyph.bearing_left, m_max_bearing_left);
+        m_max_bearing_top  = std::max(glyph.bearing_top, m_max_bearing_top);
     }
 
     texture_props tex_props{};
@@ -217,8 +219,9 @@ auto text_engine::text_size(std::string const& str, glm::vec2 const& scale, type
             pos.y - float(batch.max_delta_origin_ymin()) * scale.y * font_scale
         };
         glm::vec2 const tr{
-            pos.x + (float(gh.bearing_left)) * scale.x * font_scale,
-            pos.y + (float(batch.max_bearing_top()) - float(batch.max_delta_origin_ymin())) * scale.y * font_scale
+            pos.x + float(batch.max_bearing_left() + std::int32_t(gh.bitmap->width())) * scale.x * font_scale,
+            // pos.y + float(batch.max_bearing_top()) * scale.y * font_scale
+            pos.y + float(gh.bitmap->height()) * scale.y * font_scale
         };
         min_position.x = std::min(bl.x, min_position.x);
         min_position.y = std::min(bl.y, min_position.y);

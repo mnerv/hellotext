@@ -26,12 +26,12 @@ auto hsb2rgb(float hue, float saturation, float brightness) -> glm::vec3 {
 static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> void {
     auto window = txt::make_window({"Hello, Text!"});
     txt::renderer::init(window);
-    // auto roboto = txt::renderer::instance()->load_font({
-    //     .filename = "./res/fonts/RobotoMono/RobotoMonoNerdFontMono-Medium.ttf",
-    //     .size     = 21,
-    //     .family   = "Roboto Mono Nerd Font Mono",
-    //     .style    = "Medium"
-    // });
+    auto roboto = txt::renderer::instance()->load_font({
+        .filename = "./res/fonts/RobotoMono/RobotoMonoNerdFontMono-Regular.ttf",
+        .size     = 27,
+        .family   = "Roboto Mono Nerd Font Mono",
+        .style    = "Regular"
+    });
     // auto sfmono = txt::renderer::instance()->load_font({
     //     .filename = "res/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
     //     .size     = 14,
@@ -43,9 +43,11 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
 
     glm::vec2 text_pos = {float(window->width()) / 2.0f, float(window->height()) / 2.0f};
     glm::vec2 text_heading{1.0f};
-    float const speed = 100.0f;
-    auto const txt_size = txt::text_size("Hello, World!", glm::vec2{3.0f});
-    glm::vec2 const text_padding{8.0f, 8.0f};
+    // float const speed = 0.0f;
+    float const speed = 200.0f;
+    float const scale = 1.0f;
+    auto const txt_size = txt::text_size("Hello, World!", glm::vec2{scale}, roboto);
+    glm::vec2 const text_padding{8.0f, 4.0f};
     glm::vec3 color{1.0f};
 
     std::random_device rdevice;
@@ -79,7 +81,7 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
         }
 
         txt::rect(text_pos, txt_size + text_padding, 0.0f, {color, 1.0f});
-        txt::text("Hello, World!", text_pos - txt_size / 2.0f, {color * 0.25f, 1.0f}, glm::vec2{3.0f});
+        txt::text("Hello, World!", text_pos - txt_size / 2.0f, {color * 0.25f, 1.0f}, glm::vec2{scale}, roboto);
         txt::end_frame();
 
         window->swap();
