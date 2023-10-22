@@ -204,11 +204,11 @@ auto window::setup_native() -> void {
             fn.second(e);
         });
     });
-    glfwSetWindowIconifyCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t iconified) {
-        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
-        (void)ptr;
-        (void)iconified;
-    });
+    // glfwSetWindowIconifyCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t iconified) {
+    //     auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+    //     (void)ptr;
+    //     (void)iconified;
+    // });
     glfwSetWindowMaximizeCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t maximized) {
         auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
         ptr->m_is_maximized = bool(maximized);
@@ -480,21 +480,52 @@ auto window::setup_native() -> void {
         auto ptr = static_cast<window*>(userData);
         ptr->m_mouse_x = double(mouseEvent->clientX);
         ptr->m_mouse_y = double(mouseEvent->clientY);
-        return EM_FALSE;
+        std::uint32_t mod_flag = 0x00;
+        mod_flag |= (std::uint32_t(mouseEvent->ctrlKey)  << std::uint32_t(modifier_flags::flag::control));
+        mod_flag |= (std::uint32_t(mouseEvent->shiftKey) << std::uint32_t(modifier_flags::flag::shift));
+        mod_flag |= (std::uint32_t(mouseEvent->altKey)   << std::uint32_t(modifier_flags::flag::alternative));
+        mod_flag |= (std::uint32_t(mouseEvent->metaKey)  << std::uint32_t(modifier_flags::flag::super));
+
+        auto const e = mouse_down_event(mouse_button(mouseEvent->button), {mod_flag}, ptr->m_mouse_x, ptr->m_mouse_y);
+        auto const it = ptr->m_listeners.find(event_type::mouse_down);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_mouseup_callback(target_name, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenMouseEvent const* mouseEvent, void *userData) {
         auto ptr = static_cast<window*>(userData);
         ptr->m_mouse_x = double(mouseEvent->clientX);
         ptr->m_mouse_y = double(mouseEvent->clientY);
-        return EM_FALSE;
+        std::uint32_t mod_flag = 0x00;
+        mod_flag |= (std::uint32_t(mouseEvent->ctrlKey)  << std::uint32_t(modifier_flags::flag::control));
+        mod_flag |= (std::uint32_t(mouseEvent->shiftKey) << std::uint32_t(modifier_flags::flag::shift));
+        mod_flag |= (std::uint32_t(mouseEvent->altKey)   << std::uint32_t(modifier_flags::flag::alternative));
+        mod_flag |= (std::uint32_t(mouseEvent->metaKey)  << std::uint32_t(modifier_flags::flag::super));
+
+        auto const e = mouse_up_event(mouse_button(mouseEvent->button), {mod_flag}, ptr->m_mouse_x, ptr->m_mouse_y);
+        auto const it = ptr->m_listeners.find(event_type::mouse_up);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_wheel_callback(target_name, this, EM_FALSE,
     [](int, EmscriptenWheelEvent const* wheelEvent, void *userData) {
         auto ptr = static_cast<window*>(userData);
-        (void)ptr;
-        (void)wheelEvent;
-        return EM_FALSE;
+        auto const e = mouse_wheel_event(wheelEvent->deltaX, wheelEvent->deltaY, ptr->m_mouse_x, ptr->m_mouse_y);
+        auto const it = ptr->m_listeners.find(event_type::mouse_wheel);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenKeyboardEvent const* keyEvent, void *userData) {
@@ -512,20 +543,65 @@ auto window::setup_native() -> void {
     emscripten_set_touchstart_callback(target_name, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
         auto ptr = static_cast<window*>(userData);
-        (void)ptr;
-        return EM_FALSE;
+
+        auto const it = ptr->m_listeners.find(event_type::touch_start);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+
+        auto const size = std::size_t(touchEvent->numTouches) <= max_touch_points ? std::size_t(touchEvent->numTouches) : max_touch_points;
+        auto const touches = touchEvent->touches;
+        touch_points_t points{};
+        for (std::size_t i = 0; i < size; ++i) {
+            points[i] = touch_point(std::size_t(touches[i].identifier), double(touches[i].clientX), double(touches[i].clientY));
+        }
+
+        auto const e = touch_start_event(size, points);
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_touchmove_callback(target_name, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
         auto ptr = static_cast<window*>(userData);
-        (void)ptr;
-        return EM_FALSE;
+
+        auto const it = ptr->m_listeners.find(event_type::touch_move);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+
+        auto const size = std::size_t(touchEvent->numTouches) <= max_touch_points ? std::size_t(touchEvent->numTouches) : max_touch_points;
+        auto const touches = touchEvent->touches;
+        touch_points_t points{};
+        for (std::size_t i = 0; i < size; ++i) {
+            points[i] = touch_point(std::size_t(touches[i].identifier), double(touches[i].clientX), double(touches[i].clientY));
+        }
+
+        auto const e = touch_move_event(size, points);
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_touchend_callback(target_name, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
         auto ptr = static_cast<window*>(userData);
-        (void)ptr;
-        return EM_FALSE;
+
+        auto const it = ptr->m_listeners.find(event_type::touch_end);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+
+        auto const size = std::size_t(touchEvent->numTouches) <= max_touch_points ? std::size_t(touchEvent->numTouches) : max_touch_points;
+        auto const touches = touchEvent->touches;
+        touch_points_t points{};
+        for (std::size_t i = 0; i < size; ++i) {
+            points[i] = touch_point(std::size_t(touches[i].identifier), double(touches[i].clientX), double(touches[i].clientY));
+        }
+
+        auto const e = touch_end_event(size, points);
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_touchcancel_callback(target_name, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {

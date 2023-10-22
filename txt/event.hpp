@@ -609,8 +609,8 @@ public:
         using namespace std::string_literals;
         std::string str{"touch_point {"};
         str += "id: " + std::to_string(m_id) + ", ";
-        str += "x: "  + std::to_string(m_x)  + ", ";
-        str += "y: "  + std::to_string(m_x)  + " }";
+        str += "x: "  + fmt::format("{:.3f}", m_x) + ", ";
+        str += "y: "  + fmt::format("{:.3f}", m_y) + " }";
         return str;
     }
     [[nodiscard]]auto id() const -> std::size_t { return m_id; }
@@ -622,7 +622,8 @@ protected:
     double m_x;
     double m_y;
 };
-using touch_points_t = std::array<touch_point, 32>;
+inline constexpr std::size_t max_touch_points = 32;
+using touch_points_t = std::array<touch_point, max_touch_points>;
 
 class touch_event : public event {
 public:
@@ -639,6 +640,7 @@ public:
         std::string str{name()};
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "size: " + std::to_string(m_size) + ", ";
         for (std::size_t i = 0; i < m_size; ++i) {
             str += "[" + std::to_string(i) + "]: " + m_points[i].str();
             if (i < m_points.size() - 1) str += ", ";

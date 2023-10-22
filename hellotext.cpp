@@ -32,14 +32,19 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
     auto callback = [&](txt::event const& e) {
         push_text(e.str());
     };
-    window->add_event_listener(txt::event_type::key_down, callback);
-    window->add_event_listener(txt::event_type::key_up, callback);
-    auto keydown = [&](txt::event const& ev) {
-        auto const& e = static_cast<txt::key_down_event const&>(ev);
-        if (e.keycode() == txt::keycode::Q)
-            window->close();
-    };
-    window->add_event_listener(txt::event_type::key_down, keydown);
+    window->add_event_listener(txt::event_type::mouse_down, callback);
+    window->add_event_listener(txt::event_type::mouse_up, callback);
+    window->add_event_listener(txt::event_type::mouse_wheel, callback);
+    window->add_event_listener(txt::event_type::touch_start, callback);
+    window->add_event_listener(txt::event_type::touch_move, callback);
+    window->add_event_listener(txt::event_type::touch_end, callback);
+    // window->add_event_listener(txt::event_type::key_up, callback);
+    // auto keydown = [&](txt::event const& ev) {
+    //     auto const& e = static_cast<txt::key_down_event const&>(ev);
+    //     if (e.keycode() == txt::keycode::Q)
+    //         window->close();
+    // };
+    // window->add_event_listener(txt::event_type::key_down, keydown);
 
     txt::loop(window, [&] (double dt){
         txt::begin_frame();
@@ -54,7 +59,8 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
 
         float offset_y = 0.0f;
         for (auto const& txt : texts) {
-            txt::text(txt, {4.0f, float(window->height()) - offset_y - text_size.y - 4.0f}, glm::vec4{txt::hsb2rgb(offset_y / float(window->height()) * 360.0f, 1.0f, 1.0f), 1.0f}, text_scale);
+            // txt::text(txt, {4.0f, float(window->height()) - offset_y - text_size.y - 4.0f}, glm::vec4{txt::hsb2rgb(offset_y / float(window->height()) * 360.0f, 1.0f, 1.0f), 1.0f}, text_scale);
+            txt::text(txt, {4.0f, float(window->height()) - offset_y - text_size.y - 4.0f}, glm::vec4{1.0f}, text_scale);
             offset_y += text_size.y;
         }
 
