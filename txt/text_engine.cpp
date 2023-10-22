@@ -24,7 +24,7 @@ auto text_batch::generate_atlas() -> void {
     m_max_delta_origin_ymin = 0;
     m_max_bearing_left      = 0;
     m_max_bearing_top       = 0;
-    for (auto const& [code, glyph] : m_typeface->glyphs()) {
+    for (auto const& [code, glyph] : m_typeface->data()) {
         insert_bitmap(glyph);
         m_max_delta_origin_ymin = std::max(std::int32_t(glyph.bitmap->height()) - glyph.bearing_top, m_max_delta_origin_ymin);
         m_max_bearing_left = std::max(glyph.bearing_left, m_max_bearing_left);
@@ -32,7 +32,7 @@ auto text_batch::generate_atlas() -> void {
     }
 
     texture_props tex_props{};
-    if (m_typeface->mode() == text_render_mode::raster) {
+    if (m_typeface->render_mode() == text_render_mode::raster) {
         tex_props.min_filter = tex_filter::nearest;
         tex_props.mag_filter = tex_filter::nearest;
     } else {
@@ -47,6 +47,7 @@ auto text_batch::generate_atlas() -> void {
         m_texture = make_texture(m_atlas, tex_props);
     else
         m_texture->set(m_atlas, tex_props);
+    m_is_typeface_valid = true;
 }
 auto text_batch::reset() -> void {
     if (m_data.size() - m_size > 256) m_data.resize(m_size);
@@ -57,7 +58,7 @@ auto text_batch::push(glyph const& gh, glm::vec3 const& position, glm::vec4 cons
     auto const ypos = -(float(gh.bitmap->height()) - float(gh.bearing_top)) + position.y;
     auto const w = float(gh.bitmap->width());
     auto const h = float(gh.bitmap->height());
-    auto const uv = m_uv_map.at(gh.codepoint);
+    auto const& uv = m_uv_map.at(gh.codepoint);
 
     gpu const new_char{
         .color     = color,
@@ -78,8 +79,8 @@ auto text_batch::resize_atlas() -> void {
     constexpr auto round_up2 = [](auto const& value) {
         return std::pow(2, std::ceil(std::log2(value) / std::log2(2)));
     };
-    auto const cols = static_cast<std::size_t>(std::ceil(std::sqrt(m_typeface->glyphs().size())));
-    auto const msp2 = static_cast<std::size_t>(round_up2(m_typeface->glyph_size()));  // Glyph max size round to power of 2
+    auto const cols = static_cast<std::size_t>(std::ceil(std::sqrt(m_typeface->size())));
+    auto const msp2 = static_cast<std::size_t>(round_up2(m_typeface->max_size_dim()));  // Glyph max size round to power of 2
     auto const size = static_cast<std::size_t>(round_up2(cols * msp2));
     if (m_atlas == nullptr || m_atlas->width() != size) {
         m_atlas = make_image_u8(nullptr, size, size, m_typeface->channels());
@@ -102,7 +103,7 @@ auto text_batch::insert_bitmap(txt::glyph const& glyph) -> void {
         }
     );
 
-    auto const glyph_size = m_typeface->glyph_size();
+    auto const glyph_size = m_typeface->max_size_dim();
     m_current_uv.x += std::int32_t(glyph_size);
     if (m_current_uv.x >= std::int32_t(m_atlas->width() - glyph_size)) {
         m_current_uv.x = 0;
@@ -166,51 +167,58 @@ auto text_engine::typeface(std::string const& family, std::string const& style) 
 
 auto text_engine::text(std::string const& str, glm::vec3 const& position, glm::vec4 const& color, glm::vec2 const& scale, typeface_ref_t const& typeface) -> void {
     typeface_ref_t current = typeface == nullptr ? m_typeface : typeface;
-    auto it = m_batches.find(current);
-    if (it == std::end(m_batches)) reload();
-    it = m_batches.find(current);
-    auto& batch = it->second;
+    auto batch_it = m_batches.find(current);
+    if (batch_it == std::end(m_batches)) reload();
+    batch_it = m_batches.find(current);
+    auto& batch = batch_it->second;
 
     std::u32string tmp_str{};
     utf8::utf8to32(std::begin(str), std::end(str), std::back_inserter(tmp_str));
     glm::vec2 pos = position;
     // std::int64_t advance_y = 0;
     auto font_scale = 1.0f;
-    if (current->mode() != text_render_mode::raster) {
+    if (current->render_mode() != text_render_mode::raster) {
         font_scale *= 1.0f / float(m_window->content_scale_x());
     }
 
     for (auto const& code : tmp_str) {
-        auto const size = current->glyph_size();
-        auto const& gh = current->query(code);
-        if (size != current->glyph_size()) batch.generate_atlas();
-
+        auto it = current->find(code);
+        if (it == std::end(*current)) {
+            it = current->load(code);
+            if (it == std::end(*current)) it = current->find(L'?');
+            else batch.generate_atlas();
+        }
+        auto const& gh = it->second;
         batch.push(gh, {pos.x, pos.y + float(batch.max_delta_origin_ymin()), position.z}, color, scale * font_scale);
         pos.x += float(gh.advance_x >> 6) * scale.x * font_scale;
     }
 }
 auto text_engine::text_size(std::string const& str, glm::vec2 const& scale, typeface_ref_t const& typeface) -> glm::vec2 {
     typeface_ref_t current = typeface == nullptr ? m_typeface : typeface;
-    auto it = m_batches.find(current);
-    if (it == std::end(m_batches)) reload();
-    it = m_batches.find(current);
-    auto& batch = it->second;
+    auto batch_it = m_batches.find(current);
+    if (batch_it == std::end(m_batches)) reload();
+    batch_it = m_batches.find(current);
+    auto& batch = batch_it->second;
 
     std::u32string tmp_str{};
     utf8::utf8to32(std::begin(str), std::end(str), std::back_inserter(tmp_str));
     glm::vec2 pos{0.0f};
     // std::int64_t advance_y = 0;
     auto font_scale = 1.0f;
-    if (current->mode() != text_render_mode::raster) {
+    if (current->render_mode() != text_render_mode::raster) {
         font_scale *= 1.0f / float(m_window->content_scale_x());
     }
 
     glm::vec2 min_position{limits<float>::max()};
     glm::vec2 max_position{limits<float>::min()};
     for (auto const& code : tmp_str) {
-        auto const size = current->glyph_size();
-        auto const& gh = current->query(code);
-        if (size != current->glyph_size()) batch.generate_atlas();
+        auto it = current->find(code);
+        if (it == std::end(*current)) {
+            it = current->load(code);
+            if (it == std::end(*current)) it = current->find(L'?');
+            else batch.generate_atlas();
+        }
+        auto const& gh = it->second;
 
         glm::vec2 const bl{
             pos.x,
@@ -254,7 +262,7 @@ auto text_engine::end() -> void {
         m_instance_buffer->sub(batch.chars().data(), batch.size() * sizeof(text_batch::gpu));
         m_instance_buffer->unbind();
 
-        if (tf->mode() == text_render_mode::subpixel)
+        if (tf->render_mode() == text_render_mode::subpixel)
             render_subpixel(batch);
         else
             render_normal(batch);

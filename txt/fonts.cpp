@@ -5,42 +5,38 @@ namespace txt {
 typeface::typeface(typeface_props const& props, font_family_weak_t const& font_family)
     : m_filename(props.filename)
     , m_family(font_family)
-    , m_size(props.size)
+    , m_font_size(props.size)
     , m_mode(props.render_mode)
     , m_family_name(props.family)
-    , m_scale(props.scale) {
+    , m_font_scale(props.scale) {
     load(props.ranges);
 }
 
-auto typeface::set_size(std::uint32_t const& size) -> void {
-    m_size = size;
-    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_size) * m_scale));
+auto typeface::set_font_size(std::uint32_t const& size) -> void {
+    m_font_size = size;
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_font_size) * m_font_scale));
 }
-auto typeface::set_scale(double const& scale) -> void {
-    m_scale = scale;
-    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_size) * m_scale));
+auto typeface::set_font_scale(double const& scale) -> void {
+    m_font_scale = scale;
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_font_size) * m_font_scale));
 }
 auto typeface::set_mode(text_render_mode const& mode) -> void {
     m_mode = mode;
 }
 
 auto typeface::reload() -> void {
-    auto const [ft_library, ft_bitmap] = retrieve_ft();
+    auto const& [ft_library, ft_bitmap] = retrieve_ft();
     init_rendering_mode(ft_library);
-    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_size) * m_scale));
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_font_size) * m_font_scale));
 
-    m_max_glyph_size = 0;
+    m_max_size_dim = 0;
     for (auto const& [code, glyph] : m_glyphs)
         load_glyph(code, ft_library, ft_bitmap);
 }
-auto typeface::query(std::uint32_t const& code) -> glyph const& {
-    auto it = m_glyphs.find(code);
-    if (it == std::end(m_glyphs)) {
-        load_glyph(code);
-        it = m_glyphs.find(code);
-        if (it == std::end(m_glyphs)) return m_glyphs.at(' ');
-    }
-    return it->second;
+
+auto typeface::load(std::uint32_t const& code) -> glyph_map_t::const_iterator {
+    load_glyph(code);
+    return m_glyphs.find(code);
 }
 
 auto typeface::retrieve_ft() -> std::pair<FT_Library, FT_Bitmap*> {
@@ -55,15 +51,15 @@ auto typeface::retrieve_ft() -> std::pair<FT_Library, FT_Bitmap*> {
 }
 
 auto typeface::init_rendering_mode(FT_Library library) -> void {
-    m_channels = 1;
-    m_flags    = FT_LOAD_RENDER;
+    m_atlas_channels = 1;
+    m_ft_flags    = FT_LOAD_RENDER;
     if (m_mode == text_render_mode::raster) {
         // Do nothing, we render as usual
     } else if (m_mode == text_render_mode::sdf) {
-        m_flags |= FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
+        m_ft_flags |= FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
     } else if (m_mode == text_render_mode::subpixel) {
-        m_channels = 3;  // Set image channel to RGB for subpixel rendering.
-        m_flags |= FT_LOAD_TARGET_(FT_RENDER_MODE_LCD);
+        m_atlas_channels = 3;  // Set image channel to RGB for subpixel rendering.
+        m_ft_flags |= FT_LOAD_TARGET_(FT_RENDER_MODE_LCD);
         FT_Library_SetLcdFilter(library, FT_LCD_FILTER_DEFAULT);
     }
 }
@@ -80,28 +76,24 @@ auto typeface::load(character_range_t const& range) -> void {
     else if (m_ft_face == nullptr)
         throw std::runtime_error("Error createing FT_Face!");
 
-    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(m_size * m_scale));
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(m_font_size * m_font_scale));
     // Load initial character range
     for (std::uint32_t code = range[0]; code < range[1]; ++code)
         load_glyph(code, ft_library, ft_bitmap);
 }
 
 auto typeface::load_glyph(std::uint32_t const& code) -> void {
-    // Check pointer expirations from weak ptr. We make sure that the object we have is still alive.
-    if (m_family.expired()) throw std::runtime_error("Font family has expired!");
-    auto const family = m_family.lock();
-    if (family->manager().expired()) throw std::runtime_error("Font manager has expired!");
-    auto const manager = family->manager().lock();
-    auto const ft_library = manager->ft_library();
-    auto const ft_bitmap  = manager->ft_bitmap();
+    auto const [ft_library, ft_bitmap] = retrieve_ft();
+    init_rendering_mode(ft_library);
+    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(m_font_size * m_font_scale));
     load_glyph(code, ft_library, ft_bitmap);
 }
 auto typeface::load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void {
     auto const index = FT_Get_Char_Index(m_ft_face, code);
     if (index == 0) return;
-    if (FT_Load_Glyph(m_ft_face, index, m_flags)) return;
+    if (FT_Load_Glyph(m_ft_face, index, m_ft_flags)) return;
 
-    auto const width     = m_ft_face->glyph->bitmap.width / static_cast<std::uint32_t>(m_channels);
+    auto const width     = m_ft_face->glyph->bitmap.width / static_cast<std::uint32_t>(m_atlas_channels);
     auto const height    = m_ft_face->glyph->bitmap.rows;
     auto const left      = m_ft_face->glyph->bitmap_left;
     auto const top       = m_ft_face->glyph->bitmap_top;
@@ -116,11 +108,11 @@ auto typeface::load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitm
         .bearing_top  = top,
         .advance_x    = advance_x,
         .advance_y    = advance_y,
-        .bitmap       = make_image_u8(bitmap->buffer, width, height, m_channels),
+        .bitmap       = make_image_u8(bitmap->buffer, width, height, m_atlas_channels),
     });
 
     auto const width_or_height = std::size_t(std::max(width, height));
-    m_max_glyph_size = std::max(m_max_glyph_size, width_or_height);
+    m_max_size_dim = std::max(m_max_size_dim, width_or_height);
 }
 
 font_family::font_family(std::string const& name, font_manager_weak_t const& font_manager)

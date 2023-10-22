@@ -44,8 +44,8 @@ enum class event_type : std::uint32_t {
     custom
 };
 
-using event_clock = std::chrono::steady_clock;
-using event_time_point = std::chrono::steady_clock::time_point;
+using event_clock = std::chrono::high_resolution_clock;
+using event_time_point = std::chrono::high_resolution_clock::time_point;
 inline constexpr auto event_time_point_ms(auto const& timepoint) {
     return std::chrono::time_point_cast<std::chrono::milliseconds>(timepoint).time_since_epoch().count();
 }
@@ -165,7 +165,7 @@ protected:
 
 class window_resize_event : public window_event {
 public:
-    window_resize_event(std::size_t const& id, std::int32_t const& width, int32_t const& height)
+    window_resize_event(std::size_t const& id, std::uint32_t const& width, std::uint32_t const& height)
             : window_event(id, event_type::window_resize),
               m_width(width), m_height(height) {}
 
@@ -182,12 +182,12 @@ public:
         return str;
     }
 
-    [[nodiscard]]auto width() const -> std::int32_t { return m_width; }
-    [[nodiscard]]auto height() const -> std::int32_t { return m_height; }
+    [[nodiscard]]auto width() const -> std::uint32_t { return m_width; }
+    [[nodiscard]]auto height() const -> std::uint32_t { return m_height; }
 
 private:
-    std::int32_t m_width;
-    std::int32_t m_height;
+    std::uint32_t m_width;
+    std::uint32_t m_height;
 };
 
 class window_move_event : public window_event {
@@ -311,7 +311,7 @@ private:
 
 class framebuffer_resize_event : public event {
 public:
-    framebuffer_resize_event(std::size_t const& id, std::int32_t const& width, std::int32_t const& height)
+    framebuffer_resize_event(std::size_t const& id, std::uint32_t const& width, std::uint32_t const& height)
             : event(event_type::framebuffer_resize, event_category::window),
               m_id(id), m_width(width), m_height(height) {}
 
@@ -323,19 +323,20 @@ public:
         std::string str{name()};
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "id: "     + std::to_string(m_id)  + ", ";
         str += "width: "  + std::to_string(m_width)  + ", ";
         str += "height: " + std::to_string(m_height) + " }";
         return str;
     }
 
     [[nodiscard]]auto id() const -> std::size_t { return m_id; }
-    [[nodiscard]]auto width() const -> std::int32_t { return m_width; }
-    [[nodiscard]]auto height() const -> std::int32_t { return m_height; }
+    [[nodiscard]]auto width() const -> std::uint32_t { return m_width; }
+    [[nodiscard]]auto height() const -> std::uint32_t { return m_height; }
 
 private:
     std::size_t  m_id;
-    std::int32_t m_width;
-    std::int32_t m_height;
+    std::uint32_t m_width;
+    std::uint32_t m_height;
 };
 
 class content_scale_event : public event {
@@ -414,7 +415,7 @@ public:
 
 class mouse_down_event : public mouse_event {
 public:
-    mouse_down_event(std::int32_t const& button, modifier_flags const& modifiers,
+    mouse_down_event(mouse_button const& button, modifier_flags const& modifiers,
                      double const& x, double const& y)
         : mouse_event(event_type::mouse_down, x, y),
           m_button(button), m_mods(modifiers) {}
@@ -427,24 +428,24 @@ public:
         std::string str{name()};
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
-        str += "button: " + std::to_string(m_button) + ", ";
+        str += "button: " + std::to_string(std::uint32_t(m_button)) + ", ";
         str += "mods: "   + std::to_string(m_mods.raw())   + ", ";
         str += "x: " + std::to_string(m_x) + ", ";
         str += "y: " + std::to_string(m_y) + " }";
         return str;
     }
 
-    [[nodiscard]]auto button() const -> std::int32_t { return m_button; }
+    [[nodiscard]]auto button() const -> mouse_button { return m_button; }
     [[nodiscard]]auto modifiers() const -> modifier_flags const& { return m_mods; }
 
 private:
-    std::int32_t   m_button;
+    mouse_button   m_button;
     modifier_flags m_mods;
 };
 
 class mouse_up_event : public mouse_event {
 public:
-    mouse_up_event(std::int32_t const& button, modifier_flags const& modifiers,
+    mouse_up_event(mouse_button const& button, modifier_flags const& modifiers,
                         double const& x, double const& y)
             : mouse_event(event_type::mouse_up, x, y),
               m_button(button), m_mods(modifiers) {}
@@ -457,18 +458,18 @@ public:
         std::string str{name()};
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
-        str += "button: " + std::to_string(m_button) + ", ";
+        str += "button: " + std::to_string(std::uint32_t(m_button)) + ", ";
         str += "mods: "   + std::to_string(m_mods.raw())   + ", ";
         str += "x: " + std::to_string(m_x) + ", ";
         str += "y: " + std::to_string(m_y) + " }";
         return str;
     }
 
-    [[nodiscard]]auto button() const -> std::int32_t { return m_button; }
+    [[nodiscard]]auto button() const -> mouse_button { return m_button; }
     [[nodiscard]]auto mods() const -> modifier_flags const& { return m_mods; }
 
 protected:
-    std::int32_t   m_button;
+    mouse_button   m_button;
     modifier_flags m_mods;
 };
 

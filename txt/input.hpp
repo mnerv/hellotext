@@ -3,6 +3,20 @@
 #include <cstdint>
 
 namespace txt {
+enum class mouse_button : std::uint32_t {
+    B1 = 0,
+    B2 = 1,
+    B3 = 2,
+    B4 = 3,
+    B5 = 4,
+    B6 = 5,
+    B7 = 6,
+    B8 = 7,
+    left   = B1,
+    right  = B2,
+    middle = B3,
+};
+
 enum class keycode : std::uint32_t {
     A = 0x41,
     B = 0x42,
@@ -308,20 +322,18 @@ enum class scancode : std::uint16_t {
 class modifier_flags {
 public:
     enum class flag : std::uint32_t {
-        alpha_shift = 0,
-        shift       = 1,
-        control     = 2,
-        alternative = 3,
-        super       = 4,
-        caps_lock   = 5,
-        num_lock    = 6,
+        shift       = 0,
+        control     = 1,
+        alternative = 2,
+        super       = 3,
+        caps_lock   = 4,
+        num_lock    = 5,
     };
 
 public:
     modifier_flags(std::uint32_t const& flags) : m_flags(flags) {}
     ~modifier_flags() = default;
 
-    [[nodiscard]]auto alpha_shift() const -> bool { return flag_state(flag::alpha_shift); }
     [[nodiscard]]auto shift() const -> bool { return flag_state(flag::shift); }
     [[nodiscard]]auto control() const -> bool { return flag_state(flag::control); }
     [[nodiscard]]auto alternative() const -> bool { return flag_state(flag::alternative); }

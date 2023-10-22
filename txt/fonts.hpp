@@ -66,24 +66,31 @@ struct typeface_props {
 // Contains the loaded font and rendered glyph, belongs to font family
 class typeface : public std::enable_shared_from_this<typeface> {
 public:
+    using glyph_map_t = std::unordered_map<std::uint32_t, glyph>;
+
+public:
     typeface(typeface_props const& props, font_family_weak_t const& font_family);
     ~typeface() = default;
 
     auto filename() const -> std::string const& { return m_filename; }
-    auto size() const -> std::uint32_t { return m_size; }
-    auto scale() const -> double { return m_scale; }
-    auto mode() const -> text_render_mode { return m_mode; }
-    auto glyph_size() const -> std::size_t { return m_max_glyph_size; }
-    auto glyphs() const -> std::unordered_map<std::uint32_t, glyph> const& { return m_glyphs; }
-    auto channels() const -> std::size_t { return m_channels; }
+    auto font_size() const -> std::uint32_t { return m_font_size; }
+    auto font_scale() const -> double { return m_font_scale; }
+    auto render_mode() const -> text_render_mode { return m_mode; }
+    auto size() const -> std::size_t { return m_glyphs.size(); }
+    auto data() const -> glyph_map_t const& { return m_glyphs; }
+    auto channels() const -> std::size_t { return m_atlas_channels; }
     auto family_name() const -> std::string const& { return m_family_name; }
+    auto max_size_dim() const -> std::size_t { return m_max_size_dim; }
 
-    auto set_size(std::uint32_t const& size) -> void;
-    auto set_scale(double const& scale) -> void;
+    auto set_font_size(std::uint32_t const& size) -> void;
+    auto set_font_scale(double const& scale) -> void;
     auto set_mode(text_render_mode const& mode) -> void;
 
     auto reload() -> void;
-    auto query(std::uint32_t const& code) -> glyph const&;
+    auto find(std::uint32_t const& code) const -> glyph_map_t::const_iterator { return m_glyphs.find(code); }
+    auto load(std::uint32_t const& code) -> glyph_map_t::const_iterator;
+    auto begin() const -> glyph_map_t::const_iterator { return std::begin(m_glyphs); }
+    auto end() const -> glyph_map_t::const_iterator { return std::end(m_glyphs); }
 
 private:
     [[nodiscard]]auto retrieve_ft() -> std::pair<FT_Library, FT_Bitmap*>;
@@ -95,15 +102,15 @@ private:
 private:
     std::string        m_filename;
     font_family_weak_t m_family;
-    std::uint32_t      m_size;
+    std::uint32_t      m_font_size;
+    double             m_font_scale;
     text_render_mode   m_mode;
     std::string        m_family_name;
-    double             m_scale;
-    std::int32_t       m_flags{0x00};
-    std::size_t        m_channels{0x00};
+    std::int32_t       m_ft_flags{0x00'00'00'00};
+    std::size_t        m_atlas_channels{0};
     FT_Face            m_ft_face{nullptr};
-    std::unordered_map<std::uint32_t, glyph> m_glyphs{};
-    std::size_t m_max_glyph_size{0};
+    glyph_map_t        m_glyphs{};
+    std::size_t        m_max_size_dim{0};
 };
 
 class font_family : public std::enable_shared_from_this<font_family> {

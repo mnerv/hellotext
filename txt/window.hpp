@@ -6,20 +6,30 @@
 #include <string>
 #include <filesystem>
 #include <chrono>
+#include <unordered_map>
 
 #include "glm/vec2.hpp"
 #include "utility.hpp"
 
+#include "input.hpp"
+#include "event.hpp"
+
 namespace txt {
 auto read_text(std::filesystem::path const& filename) -> std::string;
+
+// template <typename T>
+// concept EventFunc = std::is_invocable_r_v<void, T, event const&>;
 
 class window {
 public:
     struct props {
-        std::string_view title  = "txt::window";
+        std::string_view  title  = "txt::window";
         std::uint32_t     width  = 960;
         std::uint32_t     height = 600;
     };
+
+    using event_fn  = std::function<void(event const&)>;
+    using event_map = std::unordered_map<std::size_t, event_fn>;
 
 public:
     window(window::props const& props);
@@ -44,6 +54,9 @@ public:
     auto poll() -> void;
     auto swap() -> void;
 
+    auto add_event_listener(event_type const& type, event_fn const& func) -> void;
+    auto remove_event_listener(event_type const& type, event_fn const& func) -> void;
+
 private:
     auto setup_native() -> void;
     auto clean_native() -> void;
@@ -64,6 +77,7 @@ private:
     bool          m_is_hovered{false};
     double        m_mouse_x{0.0};
     double        m_mouse_y{0.0};
+    std::unordered_map<event_type, event_map> m_listeners{};
 
 private:
     void* m_native{nullptr};

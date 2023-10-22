@@ -39,13 +39,14 @@ public:
     auto generate_atlas() -> void;
     auto reset() -> void;
     auto push(glyph const& code, glm::vec3 const& position, glm::vec4 const& color = glm::vec4{1.0f}, glm::vec2 const& scale = glm::vec2{1.0f}) -> void;
-
-private:
-    auto resize_atlas() -> void;
     auto insert_bitmap(txt::glyph const& glyph) -> void;
 
 private:
+    auto resize_atlas() -> void;
+
+private:
     typeface_ref_t   m_typeface;
+    bool             m_is_typeface_valid{false};
     std::vector<gpu> m_data{};
     std::size_t      m_size{0};
     image_u8_ref_t   m_atlas{nullptr};
