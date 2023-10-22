@@ -175,7 +175,6 @@ auto text_engine::text(std::string const& str, glm::vec3 const& position, glm::v
     std::u32string tmp_str{};
     utf8::utf8to32(std::begin(str), std::end(str), std::back_inserter(tmp_str));
     glm::vec2 pos = position;
-    // std::int64_t advance_y = 0;
     auto font_scale = 1.0f;
     if (current->render_mode() != text_render_mode::raster) {
         font_scale *= 1.0f / float(m_window->content_scale_x());
@@ -203,7 +202,6 @@ auto text_engine::text_size(std::string const& str, glm::vec2 const& scale, type
     std::u32string tmp_str{};
     utf8::utf8to32(std::begin(str), std::end(str), std::back_inserter(tmp_str));
     glm::vec2 pos{0.0f};
-    // std::int64_t advance_y = 0;
     auto font_scale = 1.0f;
     if (current->render_mode() != text_render_mode::raster) {
         font_scale *= 1.0f / float(m_window->content_scale_x());
@@ -226,7 +224,6 @@ auto text_engine::text_size(std::string const& str, glm::vec2 const& scale, type
         };
         glm::vec2 const tr{
             pos.x + float(batch.max_bearing_left() + std::int32_t(gh.bitmap->width())) * scale.x * font_scale,
-            // pos.y + float(batch.max_bearing_top()) * scale.y * font_scale
             pos.y + float(gh.bitmap->height()) * scale.y * font_scale
         };
         min_position.x = std::min(bl.x, min_position.x);
