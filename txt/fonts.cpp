@@ -6,9 +6,9 @@ typeface::typeface(typeface_props const& props, font_family_weak_t const& font_f
     : m_filename(props.filename)
     , m_family(font_family)
     , m_font_size(props.size)
+    , m_font_scale(props.scale)
     , m_mode(props.render_mode)
-    , m_family_name(props.family)
-    , m_font_scale(props.scale) {
+    , m_family_name(props.family) {
     load(props.ranges);
 }
 

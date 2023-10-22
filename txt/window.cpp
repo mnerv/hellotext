@@ -104,7 +104,6 @@ auto window::swap() -> void {
 
 auto window::add_event_listener(event_type const& type, event_fn const& fn) -> void {
     auto const id = fn.target_type().hash_code();
-    fmt::print("add id: {}\n", id);
     if (m_listeners.find(type) == std::end(m_listeners)) {
         event_map fn_map{{id, fn}};
         m_listeners.insert({type, fn_map});
@@ -114,7 +113,6 @@ auto window::add_event_listener(event_type const& type, event_fn const& fn) -> v
 }
 auto window::remove_event_listener(event_type const& type, event_fn const& fn) -> void {
     auto const id = fn.target_type().hash_code();
-    fmt::print("remove id: {}\n", id);
     auto fns = m_listeners.find(type);
     if (fns != std::end(m_listeners)) {
         fns->second.erase(id);
@@ -295,12 +293,32 @@ auto window::setup_native() -> void {
         });
     });
     glfwSetKeyCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t key, std::int32_t code, std::int32_t action, std::int32_t mods) {
-        auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
-        (void)ptr;
-        (void)key;
-        (void)code;
-        (void)action;
-        (void)mods;
+        [[maybe_unused]]auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
+        auto const convert_glfw_keycode = [](std::int32_t key) {
+            return txt::keycode(key);
+        };
+        auto const convert_glfw_scancode = [](std::int32_t scancode) {
+            (void)scancode;
+            return txt::scancode::reserved;
+        };
+
+        if (action != GLFW_RELEASE) {
+            auto const e = key_down_event(convert_glfw_keycode(key), convert_glfw_scancode(code), {std::uint32_t(mods)}, action == GLFW_REPEAT);
+            auto const it = ptr->m_listeners.find(event_type::key_down);
+            if (it == std::end(ptr->m_listeners)) return;
+            auto const& fns = it->second;
+            std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+                fn.second(e);
+            });
+        } else {
+            auto const e = key_up_event(convert_glfw_keycode(key), convert_glfw_scancode(code), {std::uint32_t(mods)});
+            auto const it = ptr->m_listeners.find(event_type::key_up);
+            if (it == std::end(ptr->m_listeners)) return;
+            auto const& fns = it->second;
+            std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+                fn.second(e);
+            });
+        }
     });
     glfwSetCharCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::uint32_t codepoint) {
         auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
@@ -366,7 +384,7 @@ auto window::setup_native() -> void {
 
     // Callbacks
     emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenUiEvent const* uiEvent, void* userData) {
+    [](int, EmscriptenUiEvent const*, void* userData) {
         auto ptr = static_cast<window*>(userData);
         double width;
         double height;
@@ -380,27 +398,82 @@ auto window::setup_native() -> void {
             ptr->m_content_scale_x = device_pixel_ratio;
             ptr->m_content_scale_y = device_pixel_ratio;
             emscripten_set_canvas_element_size(TARGET_NAME, std::int32_t(ptr->m_buffer_width), std::int32_t(ptr->m_buffer_height));
+
+            {
+                auto const e = window_resize_event(0, ptr->m_width, ptr->m_height);
+                auto const it = ptr->m_listeners.find(event_type::window_resize);
+                if (it != std::end(ptr->m_listeners)) {
+                    auto const& fns = it->second;
+                    std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+                        fn.second(e);
+                    });
+                }
+            }
+            {
+                auto const e = framebuffer_resize_event(0, ptr->m_buffer_width, ptr->m_buffer_height);
+                auto const it = ptr->m_listeners.find(event_type::framebuffer_resize);
+                if (it != std::end(ptr->m_listeners)) {
+                    auto const& fns = it->second;
+                    std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+                        fn.second(e);
+                    });
+                }
+            }
+            {
+                auto const e = content_scale_event(0, ptr->m_content_scale_x, ptr->m_content_scale_y);
+                auto const it = ptr->m_listeners.find(event_type::content_scale);
+                if (it != std::end(ptr->m_listeners)) {
+                    auto const& fns = it->second;
+                    std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+                        fn.second(e);
+                    });
+                }
+            }
         }
         return EM_FALSE;
     });
     emscripten_set_focus_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenFocusEvent const*, void* userData) {
-        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
-        return EM_FALSE;
+        auto ptr = static_cast<window*>(userData);
+        ptr->m_is_focused = true;
+        auto const e = window_focus_event(0, ptr->m_is_focused);
+
+        auto const it = ptr->m_listeners.find(event_type::window_focus);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_blur_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenFocusEvent const*, void* userData) {
-        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
-        return EM_FALSE;
+        auto ptr = static_cast<window*>(userData);
+        ptr->m_is_focused = false;
+        auto const e = window_focus_event(0, ptr->m_is_focused);
+
+        auto const it = ptr->m_listeners.find(event_type::window_focus);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_mousemove_callback(target_name, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenMouseEvent const* mouseEvent, void *userData) {
         auto ptr = static_cast<window*>(userData);
-        auto const x = double(mouseEvent->clientX);
-        auto const y = double(mouseEvent->clientY);
-        ptr->m_mouse_x = x;
-        ptr->m_mouse_y = y;
-        return EM_FALSE;
+        ptr->m_mouse_x = double(mouseEvent->clientX);
+        ptr->m_mouse_y = double(mouseEvent->clientY);
+        auto const e = mouse_move_event(ptr->m_mouse_x, ptr->m_mouse_y);
+
+        auto const it = ptr->m_listeners.find(event_type::mouse_move);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_mousedown_callback(target_name, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenMouseEvent const* mouseEvent, void *userData) {

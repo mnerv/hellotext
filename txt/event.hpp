@@ -111,7 +111,7 @@ public:
         std::string str{name()};
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
-        str += "time: "  + std::to_string(m_time) + ", ";
+        str += "time: "  + std::to_string(m_time)  + ", ";
         str += "delta: " + std::to_string(m_delta) + " }";
         return str;
     }
@@ -204,7 +204,7 @@ public:
         std::string str{name()};
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
-        str += "x: "  + std::to_string(m_x)  + ", ";
+        str += "x: " + std::to_string(m_x) + ", ";
         str += "y: " + std::to_string(m_y) + " }";
         return str;
     }
@@ -381,8 +381,8 @@ public:
         std::string str{name()};
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
-        str += "x: " + std::to_string(m_x) + ", ";
-        str += "y: " + std::to_string(m_y) + " }";
+        str += "x: " + fmt::format("{:.3f}", m_x) + ", ";
+        str += "y: " + fmt::format("{:.3f}", m_y) + " }";
         return str;
     }
 
@@ -402,15 +402,6 @@ public:
     [[nodiscard]]auto name() const -> char const* override {
         return "mouse_move_event";
     }
-    [[nodiscard]]auto str() const -> std::string override {
-        using namespace std::string_literals;
-        std::string str{name()};
-        str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
-        str += "x: " + std::to_string(m_x) + ", ";
-        str += "y: " + std::to_string(m_y) + " }";
-        return str;
-    }
 };
 
 class mouse_down_event : public mouse_event {
@@ -429,9 +420,9 @@ public:
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
         str += "button: " + std::to_string(std::uint32_t(m_button)) + ", ";
-        str += "mods: "   + std::to_string(m_mods.raw())   + ", ";
-        str += "x: " + std::to_string(m_x) + ", ";
-        str += "y: " + std::to_string(m_y) + " }";
+        str += "mods: "   + fmt::format("{:#x}", m_mods.raw())      + ", ";
+        str += "x: " + fmt::format("{:.3f}", m_x) + ", ";
+        str += "y: " + fmt::format("{:.3f}", m_y) + " }";
         return str;
     }
 
@@ -459,9 +450,9 @@ public:
         str += " { ";
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
         str += "button: " + std::to_string(std::uint32_t(m_button)) + ", ";
-        str += "mods: "   + std::to_string(m_mods.raw())   + ", ";
-        str += "x: " + std::to_string(m_x) + ", ";
-        str += "y: " + std::to_string(m_y) + " }";
+        str += "mods: "   + fmt::format("{:#x}", m_mods.raw())      + ", ";
+        str += "x: " + fmt::format("{:.3f}", m_x) + ", ";
+        str += "y: " + fmt::format("{:.3f}", m_y) + " }";
         return str;
     }
 
@@ -489,8 +480,8 @@ public:
         str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
         str += "dx: "  + std::to_string(m_dx)  + ", ";
         str += "dy: " + std::to_string(m_dy) + ", ";
-        str += "x: " + std::to_string(m_x) + ", ";
-        str += "y: " + std::to_string(m_y) + " }";
+        str += "x: " + fmt::format("{:.3f}", m_x) + ", ";
+        str += "y: " + fmt::format("{:.3f}", m_y) + " }";
         return str;
     }
 
@@ -510,15 +501,6 @@ public:
     [[nodiscard]]auto name() const -> char const* override {
         return "mouse_enter_event";
     }
-    [[nodiscard]]auto str() const -> std::string override {
-        using namespace std::string_literals;
-        std::string str{name()};
-        str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
-        str += "x: " + std::to_string(m_x) + ", ";
-        str += "y: " + std::to_string(m_y) + " }";
-        return str;
-    }
 };
 
 class mouse_leave_event : public mouse_event {
@@ -528,15 +510,6 @@ public:
 
     [[nodiscard]]auto name() const -> char const* override {
         return "mouse_leave_event";
-    }
-    [[nodiscard]]auto str() const -> std::string override {
-        using namespace std::string_literals;
-        std::string str{name()};
-        str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
-        str += "x: " + std::to_string(m_x) + ", ";
-        str += "y: " + std::to_string(m_y) + " }";
-        return str;
     }
 };
 
@@ -571,12 +544,28 @@ protected:
 
 class key_down_event : public key_event {
 public:
-    key_down_event(txt::keycode const& keycode, txt::scancode const& scancode, modifier_flags const& modifiers)
-        : key_event(event_type::key_down, keycode, scancode, modifiers) {}
+    key_down_event(txt::keycode const& keycode, txt::scancode const& scancode, modifier_flags const& modifiers, bool const& is_repeat)
+        : key_event(event_type::key_down, keycode, scancode, modifiers)
+        , m_is_repeat(is_repeat) {}
 
     [[nodiscard]]auto name() const -> char const* override {
         return "key_down_event";
     }
+    [[nodiscard]]auto str() const -> std::string override {
+        using namespace std::string_literals;
+        std::string str{name()};
+        str += fmt::format(" {{ time_point: {} ms, keycode: {:#x}, scancode: {:#x}, modifier: {:#x}, repeat: {} }}",
+                            event_time_point_ms(m_timepoint),
+                            std::uint32_t(m_keycode),
+                            std::uint16_t(m_scancode),
+                            m_modifiers.raw(),
+                            m_is_repeat);
+        return str;
+    }
+    auto is_repeat() const -> bool { return m_is_repeat; }
+
+private:
+    bool m_is_repeat;
 };
 
 class key_up_event : public key_event {
