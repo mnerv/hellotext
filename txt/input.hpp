@@ -18,14 +18,14 @@ enum class mouse_button : std::uint32_t {
 };
 
 enum class keycode : std::uint32_t {
-    UNKNOWN         =  0x00,
+    Unknown         =  0x00,
     // Printable keys
-    SPACE           =  32,  // Space
-    APOSTROPHE      =  39,  // '
-    COMMAN          =  44,  // ,
-    MINUS           =  45,  // -
-    PERIOD          =  46,  // .
-    SLASH           =  47,  // /
+    Space           =  32,  // Space
+    Apostrophe      =  39,  // '
+    Comma           =  44,  // ,
+    Minus           =  45,  // -
+    Period          =  46,  // .
+    Slash           =  47,  // /
     N0              =  48,  // 0
     N1              =  49,  // 1
     N2              =  50,  // 2
@@ -36,8 +36,8 @@ enum class keycode : std::uint32_t {
     N7              =  55,  // 7
     N8              =  56,  // 8
     N9              =  57,  // 9
-    SEMICOLON       =  59,  // ;
-    EQUAL           =  61,  // =
+    Semicolon       =  59,  // ;
+    Equal           =  61,  // =
     A               =  65,  // A
     B               =  66,  // B
     C               =  67,  // C
@@ -64,33 +64,33 @@ enum class keycode : std::uint32_t {
     X               =  88,  // X
     Y               =  89,  // Y
     Z               =  90,  // Z
-    LEFT_BRACKET    =  91,  // [
-    BACKSLASH       =  92,  // '\'
-    RIGHT_BRACKET   =  93,  // ]
-    GRAVE_ACCENT    =  96,  // `
-    WORLD_1         = 161,  // non-US #1
-    WORLD_2         = 162,  // non-US #2
+    Left_Bracket    =  91,  // [
+    Backslash       =  92,  // '\'
+    Right_Bracket   =  93,  // ]
+    Grave_Accent    =  96,  // `
+    World_1         = 161,  // non-US #1
+    World_2         = 162,  // non-US #2
 
     // Function keys
-    ESCAPE          = 256,
-    ENTER           = 257,
-    TAB             = 258,
-    BACKSPACE       = 259,
-    INSERT          = 260,
-    DELETE          = 261,
-    RIGHT           = 262,  // ARROW KEY: Right
-    LEFT            = 263,  // ARROW KEY: Left
-    DOWN            = 264,  // ARROW KEY: Down
-    UP              = 265,  // ARROW KEY: Up
-    PAGE_UP         = 266,
-    PAGE_DOWN       = 267,
-    HOME            = 268,
-    END             = 269,
-    CAPS_LOCK       = 280,
-    SCROLL_LOCK     = 281,
-    NUM_LOCK        = 282,
-    PRINT_SCREEN    = 283,
-    PAUSE           = 284,
+    Escape          = 256,
+    Enter           = 257,
+    Tab             = 258,
+    Backspace       = 259,
+    Insert          = 260,
+    Delete          = 261,
+    Right           = 262,  // ARROW KEY: Right
+    Left            = 263,  // ARROW KEY: Left
+    Down            = 264,  // ARROW KEY: Down
+    Up              = 265,  // ARROW KEY: Up
+    Page_Up         = 266,
+    Page_Down       = 267,
+    Home            = 268,
+    End             = 269,
+    Caps_Lock       = 280,
+    Scroll_Lock     = 281,
+    Num_Lock        = 282,
+    Print_Screen    = 283,
+    Pause           = 284,
     F1              = 290,
     F2              = 291,
     F3              = 292,
@@ -126,24 +126,24 @@ enum class keycode : std::uint32_t {
     KP_7            = 327,
     KP_8            = 328,
     KP_9            = 329,
-    KP_DECIMAL      = 330,
-    KP_DIVIDE       = 331,
-    KP_MULTIPLY     = 332,
-    KP_SUBTRACT     = 333,
-    KP_ADD          = 334,
-    KP_ENTER        = 335,
-    KP_EQUAL        = 336,
-    LEFT_SHIFT      = 340,
-    LEFT_CONTROL    = 341,
-    LEFT_ALT        = 342,
-    LEFT_SUPER      = 343,
-    RIGHT_SHIFT     = 344,
-    RIGHT_CONTROL   = 345,
-    RIGHT_ALT       = 346,
-    RIGHT_SUPER     = 347,
-    MENU            = 348,
+    KP_Decimal      = 330,
+    KP_Divide       = 331,
+    KP_Multiply     = 332,
+    KP_Subtract     = 333,
+    KP_Add          = 334,
+    KP_Enter        = 335,
+    KP_Equal        = 336,
+    Left_shift      = 340,
+    Left_control    = 341,
+    Left_alt        = 342,
+    Left_super      = 343,
+    Right_shift     = 344,
+    Right_control   = 345,
+    Right_alt       = 346,
+    Right_super     = 347,
+    Menu            = 348,
 
-    LAST            = MENU,
+    Last            = Menu,
 };
 
 // See USB HID Specification: HID Usages and Descriptors under HID Usage Tables

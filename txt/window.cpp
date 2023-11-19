@@ -127,6 +127,17 @@ static auto setup_opengl() -> void {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
+static constexpr auto convert_glfw_keycode(std::int32_t value) -> txt::keycode {
+    return txt::keycode(value);
+}
+static auto convert_glfw_scancode(std::int32_t value) -> txt::scancode {
+    txt::scancode scan = txt::scancode::reserved;
+    if (value >= 'A' && value <= 'Z') {
+        scan = txt::scancode(std::uint16_t(txt::scancode::a) + (value - 'A'));
+    }
+    return scan;
+};
+
 auto window::setup_native() -> void {
     if (glfwInit() == GLFW_FALSE)
         throw std::runtime_error(fmt::format("Failed to initialize GLFW\n"));
@@ -292,18 +303,11 @@ auto window::setup_native() -> void {
             fn.second(e);
         });
     });
-    glfwSetKeyCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t key, std::int32_t code, std::int32_t action, std::int32_t mods) {
+    glfwSetKeyCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t key, [[maybe_unused]]std::int32_t scancode, std::int32_t action, std::int32_t mods) {
         [[maybe_unused]]auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
-        auto const convert_glfw_keycode = [](std::int32_t key) {
-            return txt::keycode(key);
-        };
-        auto const convert_glfw_scancode = [](std::int32_t scancode) {
-            (void)scancode;
-            return txt::scancode::reserved;
-        };
 
         if (action != GLFW_RELEASE) {
-            auto const e = key_down_event(convert_glfw_keycode(key), convert_glfw_scancode(code), {std::uint32_t(mods)}, action == GLFW_REPEAT);
+            auto const e = key_down_event(convert_glfw_keycode(key), convert_glfw_scancode(key), {std::uint32_t(mods)}, action == GLFW_REPEAT);
             auto const it = ptr->m_listeners.find(event_type::key_down);
             if (it == std::end(ptr->m_listeners)) return;
             auto const& fns = it->second;
@@ -311,7 +315,7 @@ auto window::setup_native() -> void {
                 fn.second(e);
             });
         } else {
-            auto const e = key_up_event(convert_glfw_keycode(key), convert_glfw_scancode(code), {std::uint32_t(mods)});
+            auto const e = key_up_event(convert_glfw_keycode(key), convert_glfw_scancode(key), {std::uint32_t(mods)});
             auto const it = ptr->m_listeners.find(event_type::key_up);
             if (it == std::end(ptr->m_listeners)) return;
             auto const& fns = it->second;
@@ -322,8 +326,13 @@ auto window::setup_native() -> void {
     });
     glfwSetCharCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::uint32_t codepoint) {
         auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
-        (void)ptr;
-        (void)codepoint;
+        auto const e = key_typed_event(codepoint);
+        auto const it = ptr->m_listeners.find(event_type::key_typed);
+        if (it == std::end(ptr->m_listeners)) return;
+        auto const& fns = it->second;
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
     });
     glfwSetDropCallback(static_cast<GLFWwindow*>(m_native), [](GLFWwindow* window_ptr, std::int32_t count, char const** paths) {
         auto ptr = static_cast<window*>(glfwGetWindowUserPointer(window_ptr));
@@ -544,6 +553,7 @@ auto window::setup_native() -> void {
     [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
         auto ptr = static_cast<window*>(userData);
 
+        // TODO: Handle modifiers
         auto const it = ptr->m_listeners.find(event_type::touch_start);
         if (it == std::end(ptr->m_listeners)) return EM_FALSE;
         auto const& fns = it->second;

@@ -38,7 +38,7 @@ using font_manager_weak_t = weak<font_manager>;
 
 using character_range_t = std::array<std::uint32_t, 2>;
 
-constexpr character_range_t default_character_range{0, 128};
+constexpr character_range_t default_character_range{32, 127};  // Printable ASCII range 32..126 inclusive
 
 // I tried to follow the analogy from Google Fonts: Family, type family or font family.
 // https://fonts.google.com/knowledge/glossary/family_or_type_family_or_font_family

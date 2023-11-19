@@ -52,7 +52,7 @@ inline constexpr auto event_time_point_ms(auto const& timepoint) {
 
 class event {
 public:
-    [[nodiscard]]auto time_point() const -> event_time_point { return m_timepoint; }
+    [[nodiscard]]auto time_point() const -> event_time_point const& { return m_time_point; }
     [[nodiscard]]constexpr auto type() const -> event_type { return m_type; }
     [[nodiscard]]constexpr auto category() const -> event_category { return  m_category; }
     [[nodiscard]]virtual auto name() const -> char const* = 0;
@@ -60,11 +60,13 @@ public:
 
 protected:
     event(event_type const& type, event_category const& category)
-            : m_timepoint(event_clock::now()), m_type(type), m_category(category) {}
+        : m_time_point(event_clock::now())
+        , m_type(type)
+        , m_category(category) {}
     virtual ~event() = default;
 
 protected:
-    event_time_point m_timepoint;
+    event_time_point m_time_point;
     event_type       m_type;
     event_category   m_category;
 };
@@ -82,7 +84,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "size: " + std::to_string(m_paths.size()) + ", ";
         str += "paths: [ ";
         for (std::size_t i = 0; i < m_paths.size(); i++) {
@@ -110,7 +112,7 @@ public:
     [[nodiscard]]auto str() const -> std::string override {
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "time: "  + std::to_string(m_time)  + ", ";
         str += "delta: " + std::to_string(m_delta) + " }";
         return str;
@@ -134,7 +136,7 @@ public:
     [[nodiscard]]auto str() const -> std::string override {
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "time: "  + std::to_string(m_time)  + ", ";
         str += "delta: " + std::to_string(m_delta) + " }";
         return str;
@@ -176,7 +178,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "width: "  + std::to_string(m_width)  + ", ";
         str += "height: " + std::to_string(m_height) + " }";
         return str;
@@ -203,7 +205,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "x: " + std::to_string(m_x) + ", ";
         str += "y: " + std::to_string(m_y) + " }";
         return str;
@@ -229,7 +231,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "id: " + std::to_string(m_id) + ", ";
         str += "focus: ";
         str += (m_focus ? "true" : "false") + " }"s;
@@ -255,7 +257,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "iconified: ";
         str += (m_is_icon ? "true" : "false") + " }"s;
         return str;
@@ -278,7 +280,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " {";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += " }";
         return str;
     }
@@ -297,7 +299,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "maximized: ";
         str += (m_is_maximize ? "true" : "false") + " }"s;
         return str;
@@ -322,7 +324,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "id: "     + std::to_string(m_id)  + ", ";
         str += "width: "  + std::to_string(m_width)  + ", ";
         str += "height: " + std::to_string(m_height) + " }";
@@ -352,7 +354,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "x: " + std::to_string(m_x) + ",";
         str += "y: " + std::to_string(m_y) + " }";
         return str;
@@ -380,7 +382,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "x: " + fmt::format("{:.3f}", m_x) + ", ";
         str += "y: " + fmt::format("{:.3f}", m_y) + " }";
         return str;
@@ -418,7 +420,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "button: " + std::to_string(std::uint32_t(m_button)) + ", ";
         str += "mods: "   + fmt::format("{:#x}", m_mods.raw())      + ", ";
         str += "x: " + fmt::format("{:.3f}", m_x) + ", ";
@@ -448,7 +450,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "button: " + std::to_string(std::uint32_t(m_button)) + ", ";
         str += "mods: "   + fmt::format("{:#x}", m_mods.raw())      + ", ";
         str += "x: " + fmt::format("{:.3f}", m_x) + ", ";
@@ -477,7 +479,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "dx: "  + std::to_string(m_dx)  + ", ";
         str += "dy: " + std::to_string(m_dy) + ", ";
         str += "x: " + fmt::format("{:.3f}", m_x) + ", ";
@@ -524,8 +526,8 @@ public:
     [[nodiscard]]auto str() const -> std::string override {
         using namespace std::string_literals;
         std::string str{name()};
-        str += fmt::format(" {{ time_point: {} ms, keycode: {:#x}, scancode: {:#x}, modifier: {:#x} }}",
-                            event_time_point_ms(m_timepoint),
+        str += fmt::format(" {{ time: {} ms, keycode: {:#x}, scancode: {:#x}, modifier: {:#x} }}",
+                            event_time_point_ms(m_time_point),
                             std::uint32_t(m_keycode),
                             std::uint16_t(m_scancode),
                             m_modifiers.raw());
@@ -554,8 +556,8 @@ public:
     [[nodiscard]]auto str() const -> std::string override {
         using namespace std::string_literals;
         std::string str{name()};
-        str += fmt::format(" {{ time_point: {} ms, keycode: {:#x}, scancode: {:#x}, modifier: {:#x}, repeat: {} }}",
-                            event_time_point_ms(m_timepoint),
+        str += fmt::format(" {{ time: {} ms, keycode: {:#x}, scancode: {:#x}, modifier: {:#x}, repeat: {} }}",
+                            event_time_point_ms(m_time_point),
                             std::uint32_t(m_keycode),
                             std::uint16_t(m_scancode),
                             m_modifiers.raw(),
@@ -578,6 +580,23 @@ public:
     }
 };
 
+class key_typed_event : public event {
+public:
+    key_typed_event(std::uint32_t const& codepoint)
+        : event(event_type::key_typed, event_category::keyboard)
+        , m_codepoint(codepoint) {}
+
+    auto name() const -> char const* { return "key_typed_event"; }
+    auto str() const -> std::string {
+        std::string str{name()};
+        str += "{ " + std::to_string(m_codepoint) + " }";
+        return str;
+    };
+
+private:
+    std::uint32_t m_codepoint;
+};
+
 class controller_event : public event {
 public:
     controller_event(std::uint32_t const& id)
@@ -591,7 +610,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "id: " + std::to_string(m_id) + " }";
         return str;
     }
@@ -639,7 +658,7 @@ public:
         using namespace std::string_literals;
         std::string str{name()};
         str += " { ";
-        str += "time_point: " + std::to_string(event_time_point_ms(m_timepoint)) + " ms, ";
+        str += "time: " + std::to_string(event_time_point_ms(m_time_point)) + " ms, ";
         str += "size: " + std::to_string(m_size) + ", ";
         for (std::size_t i = 0; i < m_size; ++i) {
             str += "[" + std::to_string(i) + "]: " + m_points[i].str();
