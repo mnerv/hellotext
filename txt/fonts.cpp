@@ -1,179 +1,81 @@
 #include "fonts.hpp"
 #include <filesystem>
+#include <algorithm>
 
 namespace txt {
-typeface::typeface(typeface_props const& props, font_family_weak_t const& font_family)
-    : m_filename(props.filename)
-    , m_family(font_family)
-    , m_font_size(props.size)
-    , m_font_scale(props.scale)
-    , m_mode(props.render_mode)
-    , m_family_name(props.family) {
-    load(props.ranges);
+[[maybe_unused]]static auto filename_no_extension(std::string const& filename) -> std::string {
+    auto const path = std::filesystem::path(filename);
+    auto name = path.filename().string();
+    auto const it = name.find(path.extension().string());
+    if (it != std::string::npos) name.erase(it);
+    return name;
 }
 
-auto typeface::set_font_size(std::uint32_t const& size) -> void {
-    m_font_size = size;
-    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_font_size) * m_font_scale));
-}
-auto typeface::set_font_scale(double const& scale) -> void {
-    m_font_scale = scale;
-    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_font_size) * m_font_scale));
-}
-auto typeface::set_mode(text_render_mode const& mode) -> void {
-    m_mode = mode;
-}
+font::font(FT_Face face, font_load_params const& params)
+    : m_face(face)
+    , m_filename(params.filename)
+    , m_size(params.size)
+    , m_render_mode(params.render_mode)
+    , m_name(filename_no_extension(m_filename))
+    , m_color_channels(1)
+    , m_glyphs() { }
 
-auto typeface::reload() -> void {
-    auto const& [ft_library, ft_bitmap] = retrieve_ft();
-    init_rendering_mode(ft_library);
-    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(double(m_font_size) * m_font_scale));
-
-    m_max_size_dim = 0;
-    for (auto const& [code, glyph] : m_glyphs)
-        load_glyph(code, ft_library, ft_bitmap);
+font::~font() {
+    if (m_face == nullptr) return;
+    FT_Done_Face(m_face);
 }
+font::font(font&& other) noexcept
+    : m_face(std::exchange(other.m_face, nullptr))
+    , m_filename(std::move(other.m_filename))
+    , m_size(other.m_size)
+    , m_render_mode(other.m_render_mode)
+    , m_name(std::move(other.m_name)) { }
 
-auto typeface::load(std::uint32_t const& code) -> glyph_map_t::const_iterator {
-    load_glyph(code);
-    return m_glyphs.find(code);
-}
-
-auto typeface::retrieve_ft() -> std::pair<FT_Library, FT_Bitmap*> {
-    // Check pointer expirations from weak ptr. We make sure that the object we have is still alive.
-    if (m_family.expired()) throw std::runtime_error("Font family has expired!");
-    auto const family = m_family.lock();
-    if (family->manager().expired()) throw std::runtime_error("Font manager has expired!");
-    auto const manager = family->manager().lock();
-    auto const ft_library = manager->ft_library();
-    auto const ft_bitmap  = manager->ft_bitmap();
-    return {ft_library, ft_bitmap};
+auto font::operator=(font&& other) noexcept -> font& {
+    std::swap(m_face, other.m_face);
+    m_filename = std::move(other.m_filename);
+    std::swap(m_size, other.m_size);
+    std::swap(m_render_mode, other.m_render_mode);
+    m_name = std::move(other.m_name);
+    return *this;
 }
 
-auto typeface::init_rendering_mode(FT_Library library) -> void {
-    m_atlas_channels = 1;
-    m_ft_flags    = FT_LOAD_RENDER;
-    if (m_mode == text_render_mode::raster) {
-        // Do nothing, we render as usual
-    } else if (m_mode == text_render_mode::sdf) {
-        m_ft_flags |= FT_LOAD_TARGET_(FT_RENDER_MODE_SDF);
-    } else if (m_mode == text_render_mode::subpixel) {
-        m_atlas_channels = 3;  // Set image channel to RGB for subpixel rendering.
-        m_ft_flags |= FT_LOAD_TARGET_(FT_RENDER_MODE_LCD);
-        FT_Library_SetLcdFilter(library, FT_LCD_FILTER_DEFAULT);
-    }
-}
-
-auto typeface::load(character_range_t const& range) -> void {
-    auto const [ft_library, ft_bitmap] = retrieve_ft();
-    init_rendering_mode(ft_library);
-
-    auto const ft_ec = FT_New_Face(ft_library, m_filename.c_str(), 0, &m_ft_face);
-    if (ft_ec == FT_Err_Unknown_File_Format)
-        throw std::runtime_error(fmt::format("Font file path '{}' have an unknown file format.", m_filename));
-    else if(ft_ec)
-        throw std::runtime_error(fmt::format("Error loading font '{}' file, error type not currently supported.", m_filename));
-    else if (m_ft_face == nullptr)
-        throw std::runtime_error("Error createing FT_Face!");
-
-    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(m_font_size * m_font_scale));
-    // Load initial character range
-    for (std::uint32_t code = range[0]; code < range[1]; ++code)
-        load_glyph(code, ft_library, ft_bitmap);
-}
-
-auto typeface::load_glyph(std::uint32_t const& code) -> void {
-    auto const [ft_library, ft_bitmap] = retrieve_ft();
-    init_rendering_mode(ft_library);
-    FT_Set_Pixel_Sizes(m_ft_face, 0, std::uint32_t(m_font_size * m_font_scale));
-    load_glyph(code, ft_library, ft_bitmap);
-}
-auto typeface::load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void {
-    auto const index = FT_Get_Char_Index(m_ft_face, code);
-    if (index == 0) return;
-    if (FT_Load_Glyph(m_ft_face, index, m_ft_flags)) return;
-
-    auto const width     = m_ft_face->glyph->bitmap.width / static_cast<std::uint32_t>(m_atlas_channels);
-    auto const height    = m_ft_face->glyph->bitmap.rows;
-    auto const left      = m_ft_face->glyph->bitmap_left;
-    auto const top       = m_ft_face->glyph->bitmap_top;
-    auto const advance_x = m_ft_face->glyph->advance.x;
-    auto const advance_y = m_ft_face->size->metrics.height;
-
-    // Convert to one byte alignment
-    FT_Bitmap_Convert(library, &m_ft_face->glyph->bitmap, bitmap, 1);
-    m_glyphs.insert_or_assign(code, glyph{
-        .codepoint    = code,
-        .bearing_left = left,
-        .bearing_top  = top,
-        .advance_x    = advance_x,
-        .advance_y    = advance_y,
-        .bitmap       = make_image_u8(bitmap->buffer, width, height, m_atlas_channels),
-    });
-
-    auto const width_or_height = std::size_t(std::max(width, height));
-    m_max_size_dim = std::max(m_max_size_dim, width_or_height);
-}
-
-font_family::font_family(std::string const& name, font_manager_weak_t const& font_manager)
-    : m_name(name)
-    , m_manager(font_manager) { }
-
-auto font_family::reload() -> void {
-    // TODO: unload bitmap of the stale ones.
-    for (auto& [style, tf] : m_typefaces)
-        tf->reload();
-}
-auto font_family::add(typeface_props const& props) -> void {
-    auto const style_name = props.style;
-    auto const it = m_typefaces.find(style_name);
-    if (it != std::end(m_typefaces)) {
-        it->second->reload();
-        return;  // Reload and return because style already exist!
-    }
-    auto tf = make_ref<txt::typeface>(props, shared_from_this());
-    m_typefaces.insert({style_name, tf});
-}
-auto font_family::typeface(std::string const& style) const -> typeface_ref_t const& {
-    auto const it = m_typefaces.find(style);
-    if (it == std::end(m_typefaces))
-        throw std::runtime_error(fmt::format("Typeface with style {} does not exist!", style));
-    return it->second;
-}
-
-font_manager::font_manager() {
+font_manager::font_manager()
+    : m_library(nullptr)
+    , m_bitmap(0)
+    , m_fonts() {
     if (FT_Init_FreeType(&m_library))
         throw std::runtime_error("Failed to initialise FreeType library");
     FT_Bitmap_Init(&m_bitmap);
 }
 font_manager::~font_manager() {
+    if (m_library == nullptr) return;  // FreeType library has been moved
     FT_Bitmap_Done(m_library, &m_bitmap);
     FT_Done_FreeType(m_library);
 }
+font_manager::font_manager(font_manager const& other)
+    : m_library(nullptr)
+    , m_bitmap(0)
+    , m_fonts() {
+    if (FT_Init_FreeType(&m_library))
+        throw std::runtime_error("Failed to initialise FreeType library");
+    FT_Bitmap_Init(&m_bitmap);
+    (void)other;
+}
+auto font_manager::operator=(font_manager const& other) -> font_manager& {
+    if (this == &other) return *this;
+    return *this = font_manager(other);
+}
 
-auto font_manager::reload() -> void {
-    for (auto const& [name, family] : m_families) {
-        family->reload();
-    }
+auto font_manager::load(font_load_params const& params) -> void {
+    if (!std::filesystem::exists(params.filename))
+        throw std::runtime_error(fmt::format("Font file path '{}' does not exist!", params.filename));
+    // TODO: Load font
 }
-auto font_manager::load(typeface_props const& props) -> void {
-    if (!std::filesystem::exists(props.filename))
-        throw std::runtime_error(fmt::format("Font file path '{}' does not exist!", props.filename));
-    auto const family_name = props.family;
-    auto const family_it   = m_families.find(family_name);
-    font_family_ref_t family = nullptr;
-    if (family_it != std::end(m_families)) {
-        family = family_it->second;
-    } else {
-        family = make_ref<font_family>(family_name, shared_from_this());
-        m_families.insert({family_name, family});
-    }
-    family->add(props);
+auto font_manager::find(std::string const& name) const -> fonts_t::const_iterator {
+    return std::ranges::find_if(m_fonts, [&name](auto const& font) { return font.name() == name; });
 }
-auto font_manager::family(std::string const& family_name) -> font_family_ref_t {
-    // FIXME: Handle family name doesn't exist.
-    auto it = m_families.find(family_name);
-    if (it == std::end(m_families)) return nullptr;
-    return it->second;
+auto font_manager::erase(fonts_t::const_iterator const& it) -> void {
+    m_fonts.erase(it);
 }
 } // namespace txt

@@ -18,6 +18,7 @@ public:
     using pixel_type   = std::array<T, C>;
 
 public:
+    image() : image(0, 0, 0) {}
     image(std::size_t width, std::size_t height, std::size_t channels = 3)
         : m_buffer(nullptr)
         , m_width(width)
@@ -27,6 +28,7 @@ public:
         m_buffer = new T[m_size];
         std::memset(m_buffer, 0, m_size * sizeof(T));
     }
+
     image(T const* data, std::size_t width, std::size_t height, std::size_t channels = 3)
         : m_buffer(nullptr)
         , m_width(width)
@@ -39,6 +41,7 @@ public:
         else
             std::memset(m_buffer, 0, m_size * sizeof(T));
     }
+
     image(image const& img)
         : m_buffer(nullptr)
         , m_width(img.m_width)
@@ -48,21 +51,40 @@ public:
         m_buffer = new T[m_size];
         std::memcpy(m_buffer, img.m_buffer, m_size * sizeof(T));
     }
+
+    image(image&& other) noexcept
+        : m_buffer(std::exchange(other.m_buffer, nullptr))
+        , m_width(other.m_width)
+        , m_height(other.m_height)
+        , m_channels(other.m_channels)
+        , m_size(other.m_size) { }
+
     ~image() {
         delete[] m_buffer;
     }
 
-    auto resize(std::size_t width, std::size_t height) -> void {
+    auto operator=(image const& other) -> image& {
+        if (this == &other) return *this;
+        return *this = image(other);
+    }
+
+    auto operator=(image&& other) noexcept -> image& {
+        if (this == &other) return *this;
+        return *this = std::move(other);
+    }
+
+    auto resize(std::size_t width, std::size_t height, std::size_t channels = limits<std::size_t>::max()) -> void {
         if (width == m_height && height == m_height) {
             std::memset(m_buffer, 0x00, m_size * sizeof(T));
             return;
         }
 
         delete[] m_buffer;
-        m_width  = width;
-        m_height = height;
-        m_size   = m_width * m_height * m_channels;
-        m_buffer = new T[m_size];
+        m_width    = width;
+        m_height   = height;
+        m_channels = channels == limits<std::size_t>::max() ? m_channels : channels;
+        m_size     = m_width * m_height * m_channels;
+        m_buffer   = new T[m_size];
         std::memset(m_buffer, 0x00, m_size * sizeof(T));
     }
     auto width() const noexcept -> std::size_t { return m_width; }
@@ -129,9 +151,8 @@ private:
 using image_u8 = image<std::uint8_t>;
 using image_u8_ref_t = ref<image_u8>;
 
-auto make_image_u8(std::uint8_t const* data, std::size_t width, std::size_t height, std::size_t channels) -> image_u8_ref_t;
 auto write_png(std::string_view const& filename, image_u8 const& img) -> void;
-auto load_image_rgba(std::string const& filename, bool flip = false) -> image_u8_ref_t;
+auto load_image(std::string const& filename, bool flip = false) -> image_u8;
 } // namespace txt
 
 #endif  // TXT_IMAGE_HPP

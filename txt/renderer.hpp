@@ -32,8 +32,8 @@ auto clear_color(std::uint32_t color, float alpha = 1.0f) -> void;
 auto clear(GLenum bitmask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) -> void;
 auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation = 0.0f, glm::vec4 const& color = glm::vec4{1.0f}, glm::vec4 const& round = {}) -> void;
 auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv = {0.0f, 0.0f}, glm::vec2 const& uv_size = {1.0f, 1.0f}, glm::vec4 const& round = {0.0f, 0.0f, 0.0f, 0.0f}) -> void;
-auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color = glm::vec4{1.0f}, glm::vec2 const& scale = glm::vec2{1.0f}, typeface_ref_t const& tf = nullptr) -> void;
-auto text_size(std::string const& str, glm::vec2 const& scale = glm::vec2{1.0f}, typeface_ref_t const& typeface = nullptr) -> glm::vec2;
+auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color = glm::vec4{1.0f}, glm::vec2 const& scale = glm::vec2{1.0f}) -> void;
+auto text_size(std::string const& str, glm::vec2 const& scale = glm::vec2{1.0f}) -> glm::vec2;
 
 /**
  * Convert HSB value to RGB.
@@ -101,13 +101,8 @@ public:
     auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, glm::vec4 const& round) -> void;
     auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& round) -> void;
     auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, shader_ref_t shader, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, [[maybe_unused]] glm::vec4 const& round) -> void;
-    auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color, glm::vec2 const& scale, typeface_ref_t const& tf) -> void;
-    auto text_size(std::string const& str, glm::vec2 const& scale, typeface_ref_t const& typeface) -> glm::vec2;
-    auto load_font(typeface_props const& props) -> typeface_ref_t;
-    auto family(std::string const& family) -> font_family_ref_t;
-    auto typeface(std::string const& family, std::string const& style) -> typeface_ref_t;
-    auto fonts() -> font_manager_ref_t;
-    auto text_engine() -> text_engine_ref_t;
+    auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color, glm::vec2 const& scale) -> void;
+    auto text_size(std::string const& str, glm::vec2 const& scale) -> glm::vec2;
 
    private:
     window_ref_t m_window;
@@ -117,7 +112,6 @@ public:
     index_buffer_ref_t m_rect_index_buffer;
     vertex_buffer_ref_t m_rect_vertex_buffer;
     attribute_descriptor_ref_t m_rect_descriptor;
-    text_engine_ref_t m_text_engine;
 
     std::size_t m_color_rect_size{0};
     std::vector<rect_instance> m_color_rects{};

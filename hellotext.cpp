@@ -15,12 +15,6 @@
 static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> void {
     auto window = txt::make_window({"Hello, Text!"});
     txt::renderer::init(window);
-    auto sfmono = txt::renderer::instance()->load_font({
-        .filename = "./res/fonts/SFMono/SFMono Regular Nerd Font Complete.otf",
-        .size     = 11,
-        .family   = "SF Mono Nerd Font",
-        .style    = "Regular",
-    });
 
     window->add_event_listener(txt::event_type::key_up, [&](auto const& event) {
         auto const& e = static_cast<txt::key_up_event const&>(event);
@@ -33,7 +27,8 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
         txt::clear_color(0x000000);
         txt::clear();
 
-        txt::text("Hello, World!", {});
+        txt::rect({125.0f, 125.0f}, {100.0f, 50.0f});
+        txt::rect({125.0f, 125.0f}, {2.0f, 2.0f}, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f});
 
         txt::end_frame();
 

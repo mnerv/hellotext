@@ -48,12 +48,6 @@ auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotatio
 auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& round) -> void {
     s_instance->rect(position, size, rotation, texture, uv, uv_size, round);
 }
-auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color, glm::vec2 const& scale, typeface_ref_t const& tf) -> void {
-    s_instance->text(str, position, color, scale, tf);
-}
-auto text_size(std::string const& str, glm::vec2 const& scale, typeface_ref_t const& typeface) -> glm::vec2 {
-    return s_instance->text_size(str, scale, typeface);
-}
 
 renderer::renderer(window_ref_t window) : m_window(window) {
 #ifndef __EMSCRIPTEN__
@@ -90,8 +84,6 @@ renderer::renderer(window_ref_t window) : m_window(window) {
         {type::vec2, false, 0},
     }));
     m_rect_descriptor->add(m_rect_vertex_buffer);
-
-    m_text_engine = make_ref<txt::text_engine>(m_window, make_ref<font_manager>());
 }
 renderer::~renderer() { }
 auto renderer::begin() -> void {
@@ -101,12 +93,6 @@ auto renderer::begin() -> void {
     m_color_rect_size = 0;
     for (auto& [st, data] : m_shader_texture_rects)
         st.size = 0;
-    m_text_engine->begin();
-    m_depth = 0.0f;
-
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    m_text_engine->begin();
 }
 
 auto renderer::end() -> void {
@@ -140,8 +126,6 @@ auto renderer::end() -> void {
         m_rect_index_buffer->bind();
         glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_rect_index_buffer->size()), gl_type(m_rect_index_buffer->type()), nullptr, GLsizei(m_color_rect_size));
     }
-    m_text_engine->set_camera(m_view, m_projection);
-    m_text_engine->end();
 }
 
 auto renderer::viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void {
@@ -202,30 +186,16 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float cons
     m_depth += m_depth_step;
 }
 
-auto renderer::text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color, glm::vec2 const& scale, typeface_ref_t const& tf) -> void {
-    m_text_engine->text(str, {position, m_depth}, color, scale, tf);
-    m_depth += m_depth_step;
+auto renderer::text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color, glm::vec2 const& scale) -> void {
+    (void)str;
+    (void)position;
+    (void)color;
+    (void)scale;
 }
 
-auto renderer::text_size(std::string const& str, glm::vec2 const& scale, typeface_ref_t const& typeface) -> glm::vec2 {
-    return m_text_engine->text_size(str, scale, typeface);
-}
-
-auto renderer::load_font(typeface_props const& props) -> typeface_ref_t {
-    m_text_engine->load(props);
-    m_text_engine->reload();
-    return m_text_engine->fonts()->family(props.family)->typeface(props.style);
-}
-auto renderer::family(std::string const& family) -> font_family_ref_t {
-    return m_text_engine->fonts()->family(family);
-}
-auto renderer::typeface(std::string const& family, std::string const& style) -> typeface_ref_t {
-    return m_text_engine->typeface(family, style);
-}
-auto renderer::fonts() -> font_manager_ref_t {
-    return m_text_engine->fonts();
-}
-auto renderer::text_engine() -> text_engine_ref_t {
-    return m_text_engine;
+auto renderer::text_size(std::string const& str, glm::vec2 const& scale) -> glm::vec2 {
+    (void)str;
+    (void)scale;
+    return {};
 }
 } // namespace txt
