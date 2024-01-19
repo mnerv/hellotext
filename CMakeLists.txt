@@ -18,7 +18,7 @@ if (NOT EMSCRIPTEN)
     FetchContent_Declare(
         glad
         GIT_REPOSITORY https://github.com/mononerv/glad.git
-        GIT_TAG        3e150fcc529c089476ebbb7b4a2fe924828be916
+        GIT_TAG        f4759d7c5143c0a23391ab05caaf43052cefdd65
     )
     list(APPEND FETCH_CONTENTS glad)
 endif()
@@ -75,7 +75,6 @@ elseif (UNIX AND NOT APPLE AND NOT EMSCRIPTEN)  # Linux, BSD, Solaris, Minix
     set(PLATFORM_LINK_LIBRARIES
         "dl"
         "m"
-        "GL"
         "X11"
     )
 elseif (WIN32)

@@ -42,7 +42,7 @@ auto font::operator=(font&& other) noexcept -> font& {
 
 font_manager::font_manager()
     : m_library(nullptr)
-    , m_bitmap(0)
+    , m_bitmap()
     , m_fonts() {
     if (FT_Init_FreeType(&m_library))
         throw std::runtime_error("Failed to initialise FreeType library");
@@ -55,7 +55,7 @@ font_manager::~font_manager() {
 }
 font_manager::font_manager(font_manager const& other)
     : m_library(nullptr)
-    , m_bitmap(0)
+    , m_bitmap()
     , m_fonts() {
     if (FT_Init_FreeType(&m_library))
         throw std::runtime_error("Failed to initialise FreeType library");

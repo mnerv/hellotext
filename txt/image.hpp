@@ -5,6 +5,7 @@
 #include <array>
 #include <cstring>
 #include <string_view>
+#include <utility>
 
 #include "fmt/format.h"
 #include "utility.hpp"
@@ -18,7 +19,7 @@ public:
     using pixel_type   = std::array<T, C>;
 
 public:
-    image() : image(0, 0, 0) {}
+    image() : image(nullptr, 0, 0, 0) {}
     image(std::size_t width, std::size_t height, std::size_t channels = 3)
         : m_buffer(nullptr)
         , m_width(width)

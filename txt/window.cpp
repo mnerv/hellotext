@@ -48,12 +48,12 @@ Shader:   {:s})",
     );
 }
 
-window::window(window::props const& props)
-    : m_title(props.title)
-    , m_width(props.width)
-    , m_height(props.height)
-    , m_buffer_width(props.width)
-    , m_buffer_height(props.height) {
+window::window(window::props const& properties)
+    : m_title(properties.title)
+    , m_width(properties.width)
+    , m_height(properties.height)
+    , m_buffer_width(properties.width)
+    , m_buffer_height(properties.height) {
     setup_native();
     fmt::print("{}\n", info_opengl());
 }

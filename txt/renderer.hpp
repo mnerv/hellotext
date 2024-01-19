@@ -42,12 +42,7 @@ auto text_size(std::string const& str, glm::vec2 const& scale = glm::vec2{1.0f})
  * @param brightness - Brightness value with range [0, 1]
  * @return RGB with range [0, 1]
 */
-inline constexpr auto hsb2rgb(float hue, float saturation, float brightness) -> glm::vec3 {
-    auto const h = hue / 360.0f;
-    auto rgb = glm::clamp(glm::abs(glm::mod(h * 6.0f + glm::vec3(0.0f, 4.0f, 2.0f), 6.0f) - 3.0f) - 1.0f, 0.0f, 1.0f);
-    rgb = rgb * rgb * (3.0f - 2.0f * rgb);
-    return brightness * glm::mix(glm::vec3(1.0f), rgb, saturation);
-}
+auto hsb2rgb(float hue, float saturation, float brightness) -> glm::vec3;
 
 struct rect_instance {
     glm::vec4 color{0.0f};
@@ -64,8 +59,8 @@ struct shader_texture_pair {
     mutable std::size_t size;
     // TODO: Check for stale pair to remove them
 
-    shader_texture_pair(shader_ref_t shader, texture_ref_t texture)
-        : shader(shader), texture(texture), size(0) {}
+    shader_texture_pair(shader_ref_t shader_ref, texture_ref_t texture_ref)
+        : shader(shader_ref), texture(texture_ref), size(0) {}
 
     auto operator==(shader_texture_pair const& other) const -> bool {
         return shader == other.shader && texture == other.texture;

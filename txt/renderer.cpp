@@ -19,6 +19,13 @@ static constexpr std::uint32_t QUAD_INDICES_CW[]{
     0, 2, 3,
 };
 
+auto hsb2rgb(float hue, float saturation, float brightness) -> glm::vec3 {
+    auto const h = hue / 360.0f;
+    auto rgb = glm::clamp(glm::abs(glm::mod(h * 6.0f + glm::vec3(0.0f, 4.0f, 2.0f), 6.0f) - 3.0f) - 1.0f, 0.0f, 1.0f);
+    rgb = rgb * rgb * (3.0f - 2.0f * rgb);
+    return brightness * glm::mix(glm::vec3(1.0f), rgb, saturation);
+}
+
 auto renderer::init(window_ref_t window) -> void {
     if (s_instance != nullptr) throw std::runtime_error("txt::render has already been initialised!");
     s_instance = std::make_unique<renderer>(window);
