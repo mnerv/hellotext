@@ -17,8 +17,8 @@
 namespace txt {
 auto read_text(std::filesystem::path const& filename) -> std::string;
 
-// template <typename T>
-// concept EventFunc = std::is_invocable_r_v<void, T, event const&>;
+template <typename T>
+concept EventFunc = std::is_invocable_r_v<void, T, event const&>;
 
 class window {
 public:
@@ -32,21 +32,22 @@ public:
     using event_map = std::unordered_map<std::size_t, event_fn>;
 
 public:
-    window(window::props const& props);
-    ~window();
+    window(window::props const& properties) noexcept;
+    ~window() noexcept;
 
+    auto setup() -> void;
     auto width() const noexcept -> std::uint32_t;
     auto height() const noexcept -> std::uint32_t;
     auto buffer_width() const noexcept -> std::uint32_t;
     auto buffer_height() const noexcept -> std::uint32_t;
     auto should_close() const noexcept -> bool;
-    auto x() const -> double;
-    auto y() const -> double;
-    auto content_scale_x() const -> double;
-    auto content_scale_y() const -> double;
-    auto is_focused() const -> bool;
-    auto is_hovered() const -> bool;
-    auto is_maximized() const -> bool;
+    auto x() const noexcept -> double;
+    auto y() const noexcept -> double;
+    auto content_scale_x() const noexcept -> double;
+    auto content_scale_y() const noexcept -> double;
+    auto is_focused() const noexcept -> bool;
+    auto is_hovered() const noexcept -> bool;
+    auto is_maximized() const noexcept -> bool;
 
     auto time() const -> double;
     auto stopwatch() const -> double;
@@ -54,8 +55,32 @@ public:
     auto poll() -> void;
     auto swap() -> void;
 
-    auto add_event_listener(event_type const& type, event_fn const& func) -> void;
-    auto remove_event_listener(event_type const& type, event_fn const& func) -> void;
+    template <typename T>
+    requires std::is_invocable_v<T, mouse_move_event const&>
+    auto add_event_listener(T const& fn) -> void {
+        auto const& id = std::size_t(&fn);
+        add_event_listener(event_type::mouse_move, id, [&fn](auto const& e) {
+            fn(static_cast<mouse_move_event const&>(e));
+        });
+    }
+    template <typename T>
+    requires std::is_invocable_v<T, mouse_move_event const&>
+    auto remove_event_listener(T const& fn) -> void {
+        remove_event_listener(event_type::mouse_move, std::size_t(&fn));
+    }
+
+public:
+    auto add_event_listener(event_type const& type, EventFunc auto const& fn) -> void {
+        add_event_listener(type, std::size_t(&fn), fn);
+    }
+
+    auto remove_event_listener(event_type const& type, EventFunc auto const& fn) -> void {
+        remove_event_listener(type, std::size_t(&fn));
+    }
+
+private:
+    auto add_event_listener(event_type const& type, std::size_t const& id, event_fn const& fn) -> void;
+    auto remove_event_listener(event_type const& type, std::size_t const& id) -> void;
 
 private:
     auto setup_native() -> void;

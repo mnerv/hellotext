@@ -28,8 +28,14 @@ class font;
 class font_manager;
 
 using font_manager_ref_t = ref<font_manager>;
-using character_range_t  = std::array<std::uint32_t, 2>;
-[[maybe_unused]]constexpr character_range_t default_character_range{32, 127};  // Printable ASCII range 32..126 inclusive
+constexpr std::uint32_t character_default_start_range = 32;
+constexpr std::uint32_t character_default_end_range   = 127;
+using character_range_t = std::array<std::uint32_t, 2>;
+// Printable ASCII range 32..126 inclusive
+[[maybe_unused]]constexpr character_range_t default_character_range{
+    character_default_start_range,
+    character_default_end_range
+};
 
 struct font_load_params {
     std::string       filename;

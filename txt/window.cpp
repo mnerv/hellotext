@@ -35,8 +35,8 @@ auto read_text(std::filesystem::path const& filename) -> std::string {
     };
 }
 
-[[nodiscard]]static auto info_opengl() -> std::string {
-    return fmt::format(R"(Graphics API Info:
+[[maybe_unused]]static auto info_opengl() -> void {
+    fmt::print(R"(Graphics API Info:
 Vendor:   {:s}
 Renderer: {:s}
 Version:  {:s}
@@ -48,31 +48,33 @@ Shader:   {:s})",
     );
 }
 
-window::window(window::props const& properties)
+window::window(window::props const& properties) noexcept
     : m_title(properties.title)
     , m_width(properties.width)
     , m_height(properties.height)
     , m_buffer_width(properties.width)
     , m_buffer_height(properties.height) {
-    setup_native();
-    fmt::print("{}\n", info_opengl());
 }
-window::~window() {
+window::~window() noexcept {
     clean_native();
 }
 
+auto window::setup() -> void {
+    setup_native();
+    info_opengl();
+}
 auto window::width() const noexcept -> std::uint32_t { return m_width; }
 auto window::height() const noexcept -> std::uint32_t { return m_height; }
 auto window::buffer_width() const noexcept -> std::uint32_t { return m_buffer_width; }
 auto window::buffer_height() const noexcept -> std::uint32_t { return m_buffer_height; }
 auto window::should_close() const noexcept -> bool { return m_should_close; }
-auto window::x() const -> double { return m_position_x; }
-auto window::y() const -> double { return m_position_y; }
-auto window::content_scale_x() const -> double { return m_content_scale_x; }
-auto window::content_scale_y() const -> double { return m_content_scale_y; }
-auto window::is_focused() const -> bool { return m_is_focused; }
-auto window::is_hovered() const -> bool { return m_is_hovered; }
-auto window::is_maximized() const -> bool { return m_is_maximized; }
+auto window::x() const noexcept -> double { return m_position_x; }
+auto window::y() const noexcept -> double { return m_position_y; }
+auto window::content_scale_x() const noexcept -> double { return m_content_scale_x; }
+auto window::content_scale_y() const noexcept -> double { return m_content_scale_y; }
+auto window::is_focused() const noexcept -> bool { return m_is_focused; }
+auto window::is_hovered() const noexcept -> bool { return m_is_hovered; }
+auto window::is_maximized() const noexcept -> bool { return m_is_maximized; }
 
 auto window::time() const -> double {
     auto const t = std::chrono::system_clock::now();
@@ -102,8 +104,7 @@ auto window::swap() -> void {
 #endif  // __EMSCRIPTEN__
 }
 
-auto window::add_event_listener(event_type const& type, event_fn const& fn) -> void {
-    auto const id = fn.target_type().hash_code();
+auto window::add_event_listener(event_type const& type, std::size_t const& id, event_fn const& fn) -> void {
     if (m_listeners.find(type) == std::end(m_listeners)) {
         event_map fn_map{{id, fn}};
         m_listeners.insert({type, fn_map});
@@ -111,8 +112,8 @@ auto window::add_event_listener(event_type const& type, event_fn const& fn) -> v
         m_listeners[type].insert({id, fn});
     }
 }
-auto window::remove_event_listener(event_type const& type, event_fn const& fn) -> void {
-    auto const id = fn.target_type().hash_code();
+
+auto window::remove_event_listener(event_type const& type, std::size_t const& id) -> void {
     auto fns = m_listeners.find(type);
     if (fns != std::end(m_listeners)) {
         fns->second.erase(id);
