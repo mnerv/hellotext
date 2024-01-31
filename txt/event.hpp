@@ -40,8 +40,6 @@ enum class event_type : std::uint32_t {
     controller,
     // touch
     touch_start, touch_move, touch_end,
-    // user custom events
-    custom
 };
 
 using event_clock = std::chrono::high_resolution_clock;
@@ -704,6 +702,60 @@ public:
         return "touch_end_event";
     }
 };
+
+template <typename T>
+inline consteval auto event_t_to_enum() -> event_type {
+    if constexpr (std::is_same_v<T, drop_event>)
+        return event_type::drop;
+    else if constexpr (std::is_same_v<T, update_event>)
+        return event_type::update;
+    else if constexpr (std::is_same_v<T, draw_event>)
+        return event_type::draw;
+    else if constexpr (std::is_same_v<T, window_resize_event>)
+        return event_type::window_resize;
+    else if constexpr (std::is_same_v<T, window_move_event>)
+        return event_type::window_move;
+    else if constexpr (std::is_same_v<T, window_focus_event>)
+        return event_type::window_focus;
+    else if constexpr (std::is_same_v<T, window_icon_event>)
+        return event_type::window_icon;
+    else if constexpr (std::is_same_v<T, window_close_event>)
+        return event_type::window_close;
+    else if constexpr (std::is_same_v<T, window_maximize_event>)
+        return event_type::window_maximize;
+    else if constexpr (std::is_same_v<T, framebuffer_resize_event>)
+        return event_type::framebuffer_resize;
+    else if constexpr (std::is_same_v<T, content_scale_event>)
+        return event_type::content_scale;
+    else if constexpr (std::is_same_v<T, mouse_enter_event>)
+        return event_type::mouse_enter;
+    else if constexpr (std::is_same_v<T, mouse_leave_event>)
+        return event_type::mouse_leave;
+    else if constexpr (std::is_same_v<T, mouse_move_event>)
+        return event_type::mouse_move;
+    else if constexpr (std::is_same_v<T, mouse_down_event>)
+        return event_type::mouse_down;
+    else if constexpr (std::is_same_v<T, mouse_up_event>)
+        return event_type::mouse_up;
+    else if constexpr (std::is_same_v<T, mouse_wheel_event>)
+        return event_type::mouse_wheel;
+    else if constexpr (std::is_same_v<T, key_down_event>)
+        return event_type::key_down;
+    else if constexpr (std::is_same_v<T, key_up_event>)
+        return event_type::key_up;
+    else if constexpr (std::is_same_v<T, key_typed_event>)
+        return event_type::key_typed;
+    else if constexpr (std::is_same_v<T, controller_event>)
+        return event_type::controller;
+    else if constexpr (std::is_same_v<T, touch_start_event>)
+        return event_type::touch_start;
+    else if constexpr (std::is_same_v<T, touch_move_event>)
+        return event_type::touch_move;
+    else if constexpr (std::is_same_v<T, touch_end_event>)
+        return event_type::touch_end;
+    else
+        static_assert(false, "Unrecognized event type in etype_to_enum");
+}
 }
 
 #endif  // TXT_EVENT_HPP

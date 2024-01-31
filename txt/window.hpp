@@ -17,6 +17,19 @@
 namespace txt {
 auto read_text(std::filesystem::path const& filename) -> std::string;
 
+// SOURCE: https://stackoverflow.com/questions/6512019/can-we-get-the-type-of-a-lambda-argument
+template<typename Ret, typename Arg, typename... Rest>
+Arg arg1_helper(Ret(*) (Arg, Rest...));
+template<typename Ret, typename F, typename Arg, typename... Rest>
+Arg arg1_helper(Ret(F::*) (Arg, Rest...));
+template<typename Ret, typename F, typename Arg, typename... Rest>
+Arg arg1_helper(Ret(F::*) (Arg, Rest...) const);
+template <typename F>
+decltype(arg1_helper(&F::operator())) arg1_helper(F);
+
+template <typename T>
+using arg1_t = decltype(arg1_helper(std::declval<T>()));
+
 template <typename T>
 concept EventFunc = std::is_invocable_r_v<void, T, event const&>;
 
@@ -56,17 +69,25 @@ public:
     auto swap() -> void;
 
     template <typename T>
-    requires std::is_invocable_v<T, mouse_move_event const&>
     auto add_event_listener(T const& fn) -> void {
+        using FnArgT = arg1_t<T>;
+        using ArgT = std::remove_const_t<std::remove_reference_t<FnArgT>>;
+        static_assert(std::is_base_of_v<txt::event, ArgT>);
+        static_assert(!std::is_same_v<txt::event, ArgT>, "Function type can't be same as event");
+
         auto const& id = std::size_t(&fn);
-        add_event_listener(event_type::mouse_move, id, [&fn](auto const& e) {
-            fn(static_cast<mouse_move_event const&>(e));
+        add_event_listener(event_t_to_enum<ArgT>(), id, [&fn](auto const& e) {
+            fn(static_cast<FnArgT>(e));
         });
     }
     template <typename T>
-    requires std::is_invocable_v<T, mouse_move_event const&>
     auto remove_event_listener(T const& fn) -> void {
-        remove_event_listener(event_type::mouse_move, std::size_t(&fn));
+        using FnArgT = arg1_t<T>;
+        using ArgT = std::remove_const_t<std::remove_reference_t<FnArgT>>;
+        static_assert(std::is_base_of_v<txt::event, ArgT>);
+        static_assert(!std::is_same_v<txt::event, ArgT>, "Function type can't be same as event");
+
+        remove_event_listener(event_t_to_enum<ArgT>(), std::size_t(&fn));
     }
 
 public:

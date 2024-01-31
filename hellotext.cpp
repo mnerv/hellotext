@@ -10,21 +10,29 @@
 #include "txt/image.hpp"
 #include "txt/renderer.hpp"
 
-#include "demos/app.hpp"
-#include "demos/text_bounce.hpp"
+auto fn_ptr(int) -> void {}
+
+auto test_event(txt::mouse_move_event const& e) -> void {
+    fmt::print("fn ptr: {}\n", e.str());
+}
 
 static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> void {
     auto window = txt::make_window({"Hello, Text!"});
     window->setup();
     txt::renderer::init(window);
 
-    auto mouse_move = [](txt::mouse_move_event const& e) {
+    auto fn = [&](int) {};
+    static_assert(std::is_same_v<txt::arg1_t<decltype(fn)>, int>);
+    static_assert(std::is_same_v<txt::arg1_t<decltype(&fn_ptr)>, int>);
+
+    auto mouse_move = [&](txt::mouse_move_event const& e) {
         fmt::print("mouse move: {}\n", e.str());
     };
     window->add_event_listener(mouse_move);
+    window->add_event_listener(test_event);
 
-    window->add_event_listener(txt::event_type::key_up, [&](auto const& event) {
-        auto const& e = static_cast<txt::key_up_event const&>(event);
+    window->add_event_listener([&](txt::key_up_event const& e) {
+        fmt::print("{}\n", e.str());
         if (e.keycode() == txt::keycode::Q) window->close();
         if (e.keycode() == txt::keycode::R) {
             fmt::print("remove\n");
