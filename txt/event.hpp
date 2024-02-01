@@ -5,9 +5,9 @@
 #include <array>
 #include <chrono>
 
-#include "fmt/format.h"
 #include "utility.hpp"
 #include "input.hpp"
+#include "fmt/format.h"
 
 namespace txt {
 enum class event_category : std::uint16_t {
@@ -754,7 +754,7 @@ inline consteval auto event_t_to_enum() -> event_type {
     else if constexpr (std::is_same_v<T, touch_end_event>)
         return event_type::touch_end;
     else
-        static_assert(false, "Unrecognized event type in etype_to_enum");
+        return event_type::none;
 }
 }
 
