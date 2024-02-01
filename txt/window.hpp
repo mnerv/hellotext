@@ -74,9 +74,11 @@ public:
         using ArgT = std::remove_const_t<std::remove_reference_t<FnArgT>>;
         static_assert(std::is_base_of_v<txt::event, ArgT>);
         static_assert(!std::is_same_v<txt::event, ArgT>, "Function type can't be same as event");
+        constexpr auto type = event_t_to_enum<ArgT>();
+        static_assert(type != event_type::none, "Unknown event type");
 
         auto const& id = std::size_t(&fn);
-        add_event_listener(event_t_to_enum<ArgT>(), id, [&fn](auto const& e) {
+        add_event_listener(type, id, [&fn](auto const& e) {
             fn(static_cast<FnArgT>(e));
         });
     }
@@ -86,8 +88,10 @@ public:
         using ArgT = std::remove_const_t<std::remove_reference_t<FnArgT>>;
         static_assert(std::is_base_of_v<txt::event, ArgT>);
         static_assert(!std::is_same_v<txt::event, ArgT>, "Function type can't be same as event");
+        constexpr auto type = event_t_to_enum<ArgT>();
+        static_assert(type != event_type::none, "Unknown event type");
 
-        remove_event_listener(event_t_to_enum<ArgT>(), std::size_t(&fn));
+        remove_event_listener(type, std::size_t(&fn));
     }
 
 public:
