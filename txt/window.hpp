@@ -49,6 +49,8 @@ public:
     ~window() noexcept;
 
     auto setup() -> void;
+    auto fullscreen() -> void;
+
     auto width() const noexcept -> std::uint32_t;
     auto height() const noexcept -> std::uint32_t;
     auto buffer_width() const noexcept -> std::uint32_t;

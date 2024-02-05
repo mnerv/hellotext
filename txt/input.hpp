@@ -422,6 +422,15 @@ enum class scancode : std::uint16_t {
 class modifier_flags {
 public:
     enum class flag : std::uint32_t {
+        shift       = 0b0000'0001,
+        control     = 0b0000'0010,
+        alternative = 0b0000'0100,
+        super       = 0b0000'1000,
+        caps_lock   = 0b0001'0000,
+        num_lock    = 0b0010'0000,
+    };
+
+    enum class flagi : std::uint32_t {
         shift       = 0,
         control     = 1,
         alternative = 2,
@@ -434,16 +443,16 @@ public:
     modifier_flags(std::uint32_t const& flags) : m_flags(flags) {}
     ~modifier_flags() = default;
 
-    [[nodiscard]]auto shift() const -> bool { return flag_state(flag::shift); }
-    [[nodiscard]]auto control() const -> bool { return flag_state(flag::control); }
-    [[nodiscard]]auto alternative() const -> bool { return flag_state(flag::alternative); }
-    [[nodiscard]]auto super() const -> bool { return flag_state(flag::super); }
-    [[nodiscard]]auto caps_lock() const -> bool { return flag_state(flag::caps_lock); }
-    [[nodiscard]]auto num_lock() const -> bool { return flag_state(flag::num_lock); }
+    [[nodiscard]]auto shift() const -> bool { return flag_state(flagi::shift); }
+    [[nodiscard]]auto control() const -> bool { return flag_state(flagi::control); }
+    [[nodiscard]]auto alternative() const -> bool { return flag_state(flagi::alternative); }
+    [[nodiscard]]auto super() const -> bool { return flag_state(flagi::super); }
+    [[nodiscard]]auto caps_lock() const -> bool { return flag_state(flagi::caps_lock); }
+    [[nodiscard]]auto num_lock() const -> bool { return flag_state(flagi::num_lock); }
     [[nodiscard]]auto raw() const -> std::uint32_t { return m_flags; }
 
 private:
-    auto flag_state(flag const& index) const -> bool {
+    auto flag_state(flagi const& index) const -> bool {
         return static_cast<bool>((m_flags >> std::uint32_t(index)) & 0x1);
     }
 

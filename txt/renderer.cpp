@@ -7,14 +7,14 @@
 
 namespace txt {
 static renderer::local_t s_instance = nullptr;
-static constexpr float QUAD_VERTICES[]{
+[[maybe_unused]]static constexpr float QUAD_VERTICES[]{
 //     x,    y,    z,     u,   v
     -0.5, -0.5,  0.0,   0.0, 0.0,
     -0.5,  0.5,  0.0,   0.0, 1.0,
      0.5,  0.5,  0.0,   1.0, 1.0,
      0.5, -0.5,  0.0,   1.0, 0.0,
 };
-static constexpr std::uint32_t QUAD_INDICES_CW[]{
+[[maybe_unused]]static constexpr std::uint32_t QUAD_INDICES_CW[]{
     0, 1, 2,
     0, 2, 3,
 };
@@ -57,40 +57,8 @@ auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotatio
 }
 
 renderer::renderer(window_ref_t window) : m_window(window) {
-#ifndef __EMSCRIPTEN__
-    m_rect_default_shader = make_shader(
-        read_text("./shaders/opengl/base.vert"),
-        read_text("./shaders/opengl/color.frag")
-    );
-    m_rect_texture_shader = make_shader(
-        read_text("./shaders/opengl/base.vert"),
-        read_text("./shaders/opengl/texture.frag")
-    );
-#else
-    m_rect_default_shader = make_shader(
-        read_text("./shaders/webgl/base.vert"),
-        read_text("./shaders/webgl/color.frag")
-    );
-    m_rect_texture_shader = make_shader(
-        read_text("./shaders/webgl/base.vert"),
-        read_text("./shaders/webgl/texture.frag")
-    );
-#endif
-    m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
-    m_rect_vertex_buffer = make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::dynamic_draw, {
-        {type::vec4, false, 1},
-        {type::vec3, false, 1},
-        {type::vec3, false, 1},
-        {type::vec3, false, 1},
-        {type::vec2, false, 1},
-        {type::vec2, false, 1}
-    });
-    m_rect_descriptor = make_attribute_descriptor();
-    m_rect_descriptor->add(make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::static_draw, {
-        {type::vec3, false, 0},
-        {type::vec2, false, 0},
-    }));
-    m_rect_descriptor->add(m_rect_vertex_buffer);
+    // window->add_event_listener(std::bind(&renderer::setup, this, std::placeholders::_1));
+    window->add_event_listener([&](setup_event const& e){ setup(e); });
 }
 renderer::~renderer() { }
 auto renderer::begin() -> void {
@@ -204,5 +172,44 @@ auto renderer::text_size(std::string const& str, glm::vec2 const& scale) -> glm:
     (void)str;
     (void)scale;
     return {};
+}
+
+auto renderer::setup(setup_event const& e) -> void {
+    fmt::print("renderer: {}\n", e.str());
+
+// #ifndef __EMSCRIPTEN__
+//     m_rect_default_shader = make_shader(
+//         read_text("./shaders/opengl/base.vert"),
+//         read_text("./shaders/opengl/color.frag")
+//     );
+//     m_rect_texture_shader = make_shader(
+//         read_text("./shaders/opengl/base.vert"),
+//         read_text("./shaders/opengl/texture.frag")
+//     );
+// #else
+//     m_rect_default_shader = make_shader(
+//         read_text("./shaders/webgl/base.vert"),
+//         read_text("./shaders/webgl/color.frag")
+//     );
+//     m_rect_texture_shader = make_shader(
+//         read_text("./shaders/webgl/base.vert"),
+//         read_text("./shaders/webgl/texture.frag")
+//     );
+// #endif
+//     m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
+//     m_rect_vertex_buffer = make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::dynamic_draw, {
+//         {type::vec4, false, 1},
+//         {type::vec3, false, 1},
+//         {type::vec3, false, 1},
+//         {type::vec3, false, 1},
+//         {type::vec2, false, 1},
+//         {type::vec2, false, 1}
+//     });
+//     m_rect_descriptor = make_attribute_descriptor();
+//     m_rect_descriptor->add(make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::static_draw, {
+//         {type::vec3, false, 0},
+//         {type::vec2, false, 0},
+//     }));
+//     m_rect_descriptor->add(m_rect_vertex_buffer);
 }
 } // namespace txt

@@ -8,6 +8,7 @@
 #include "utility.hpp"
 #include "input.hpp"
 #include "fmt/format.h"
+#include "window.hpp"
 
 namespace txt {
 enum class event_category : std::uint16_t {
@@ -25,7 +26,7 @@ enum class event_category : std::uint16_t {
 enum class event_type : std::uint32_t {
     none = 0,
     // application
-    drop, update, draw,
+    setup, drop, update, draw,
     // window
     window_resize, window_move, window_focus, window_icon, window_close,
     window_maximize,
@@ -67,6 +68,26 @@ protected:
     event_time_point m_time_point;
     event_type       m_type;
     event_category   m_category;
+};
+
+class setup_event : public event {
+public:
+    setup_event()
+        : event(event_type::setup, event_category::application)
+        {}
+
+    [[nodiscard]]auto name() const -> char const* override {
+        return "setup_event";
+    }
+    [[nodiscard]]auto str() const -> std::string override {
+        using namespace std::string_literals;
+        std::string str{name()};
+        str += " { ";
+        str += "}";
+        return str;
+    }
+
+    // [[nodiscard]]auto window() const -> window_ref_t { return m_window; }
 };
 
 class drop_event : public event {
@@ -705,7 +726,9 @@ public:
 
 template <typename T>
 inline consteval auto event_t_to_enum() -> event_type {
-    if constexpr (std::is_same_v<T, drop_event>)
+    if constexpr (std::is_same_v<T, setup_event>)
+        return event_type::setup;
+    else if constexpr (std::is_same_v<T, drop_event>)
         return event_type::drop;
     else if constexpr (std::is_same_v<T, update_event>)
         return event_type::update;

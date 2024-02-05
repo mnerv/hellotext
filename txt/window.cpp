@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include "fmt/format.h"
+#include "utf8.h"
 
 #ifndef __EMSCRIPTEN__
 #define GLFW_INCLUDE_NONE
@@ -40,7 +41,8 @@ auto read_text(std::filesystem::path const& filename) -> std::string {
 Vendor:   {:s}
 Renderer: {:s}
 Version:  {:s}
-Shader:   {:s})",
+Shader:   {:s}
+)",
         reinterpret_cast<char const*>(glGetString(GL_VENDOR)),
         reinterpret_cast<char const*>(glGetString(GL_RENDERER)),
         reinterpret_cast<char const*>(glGetString(GL_VERSION)),
@@ -62,7 +64,26 @@ window::~window() noexcept {
 auto window::setup() -> void {
     setup_native();
     info_opengl();
+
+    auto const it = m_listeners.find(event_type::setup);
+    if (it == std::end(m_listeners)) return;
+    auto const& fns = it->second;
+    auto const e = setup_event();
+    std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+        fn.second(e);
+    });
 }
+auto window::fullscreen() -> void {
+    int monitor_count = 0;
+    GLFWmonitor** const monitors = glfwGetMonitors(&monitor_count);
+    const GLFWvidmode* mode = glfwGetVideoMode(*monitors);
+
+    glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+    glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+    glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+    glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+}
+
 auto window::width() const noexcept -> std::uint32_t { return m_width; }
 auto window::height() const noexcept -> std::uint32_t { return m_height; }
 auto window::buffer_width() const noexcept -> std::uint32_t { return m_buffer_width; }
@@ -135,6 +156,9 @@ static auto convert_glfw_scancode(std::int32_t value) -> txt::scancode {
     txt::scancode scan = txt::scancode::reserved;
     if (value >= 'A' && value <= 'Z') {
         scan = txt::scancode(std::uint16_t(txt::scancode::a) + (value - 'A'));
+    }
+    if (value >= 290 && value <= 301 ) {
+        scan = txt::scancode(std::uint16_t(txt::scancode::f1) + (value - 290));
     }
     return scan;
 };
@@ -363,6 +387,17 @@ auto window::clean_native() -> void {
     glfwTerminate();
 }
 #else
+static auto convert_html_key(char const* key) -> txt::keycode {
+    // std::u32string const code_str = utf8::utf8to32(std::string_view{key});
+    // fmt::print("{}, {}\n", key, code_str.size());
+    std::string const str_utf8{key};
+    if (str_utf8.size() == 1 && str_utf8.at(0) > 32) {
+        return txt::keycode(str_utf8[0]);
+    } else {
+        return txt::keycode::Unknown;
+    }
+}
+
 auto window::setup_native() -> void {
     static auto const target_name = "#canvas";
     emscripten_set_window_title(m_title.c_str());
@@ -541,7 +576,29 @@ auto window::setup_native() -> void {
     [](int, [[maybe_unused]]EmscriptenKeyboardEvent const* keyEvent, void *userData) {
         [[maybe_unused]]auto ptr = static_cast<window*>(userData);
         // TODO: Handle key down
-        return EM_FALSE;
+        if (keyEvent->ctrlKey) {
+            fmt::print("Control Key\n");
+        } else if (keyEvent->shiftKey) {
+            fmt::print("Shift Key\n");
+        } else if (keyEvent->altKey) {
+            fmt::print("Option Key\n");
+        } else if (keyEvent->metaKey) {
+            fmt::print("Super Key\n");
+        } else if (keyEvent->repeat) {
+            fmt::print("{} Repeat\n", keyEvent->key);
+        } else {
+            fmt::print("{}\n", keyEvent->key);
+        }
+        auto const key = convert_html_key(keyEvent->key);
+
+        auto const e = key_down_event(key, txt::scancode::reserved, {0x00}, false);
+        auto const it = ptr->m_listeners.find(event_type::key_down);
+        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
+        auto const& fns = it->second;
+        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
+            fn.second(e);
+        });
+        return EM_TRUE;
     });
     emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
     [](int, [[maybe_unused]]EmscriptenKeyboardEvent const* keyEvent, void *userData) {

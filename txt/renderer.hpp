@@ -99,7 +99,10 @@ public:
     auto text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color, glm::vec2 const& scale) -> void;
     auto text_size(std::string const& str, glm::vec2 const& scale) -> glm::vec2;
 
-   private:
+private:
+    auto setup(setup_event const& e) -> void;
+
+private:
     window_ref_t m_window;
     shader_ref_t m_rect_default_shader;
     shader_ref_t m_rect_texture_shader;
