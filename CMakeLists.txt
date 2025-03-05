@@ -4,24 +4,22 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)  # Group CMake targets inside a fol
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)         # Generate compile_commands.json for language servers
 
 include(FetchContent)
-if (NOT EMSCRIPTEN)
-    option(GLFW_BUILD_EXAMPLES OFF)
-    option(GLFW_BUILD_TESTS OFF)
-    option(GLFW_BUILD_DOCS OFF)
-    option(GLFW_INSTALL OFF)
-    FetchContent_Declare(
-        glfw
-        GIT_REPOSITORY https://github.com/glfw/glfw.git
-        GIT_TAG        3.3.8
-    )
-    list(APPEND FETCH_CONTENTS glfw)
-    FetchContent_Declare(
-        glad
-        GIT_REPOSITORY https://github.com/mononerv/glad.git
-        GIT_TAG        f4759d7c5143c0a23391ab05caaf43052cefdd65
-    )
-    list(APPEND FETCH_CONTENTS glad)
-endif()
+option(GLFW_BUILD_EXAMPLES OFF)
+option(GLFW_BUILD_TESTS OFF)
+option(GLFW_BUILD_DOCS OFF)
+option(GLFW_INSTALL OFF)
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG        3.3.8
+)
+list(APPEND FETCH_CONTENTS glfw)
+FetchContent_Declare(
+    glad
+    GIT_REPOSITORY https://github.com/mononerv/glad.git
+    GIT_TAG        f4759d7c5143c0a23391ab05caaf43052cefdd65
+)
+list(APPEND FETCH_CONTENTS glad)
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt.git
@@ -71,7 +69,7 @@ if (APPLE)
         "-framework CoreVideo"
         "-framework OpenGL"
     )
-elseif (UNIX AND NOT APPLE AND NOT EMSCRIPTEN)  # Linux, BSD, Solaris, Minix
+elseif (UNIX AND NOT APPLE)  # Linux, BSD, Solaris, Minix
     set(PLATFORM_LINK_LIBRARIES
         "dl"
         "m"
@@ -79,19 +77,6 @@ elseif (UNIX AND NOT APPLE AND NOT EMSCRIPTEN)  # Linux, BSD, Solaris, Minix
     )
 elseif (WIN32)
     set(PLATFORM_LINK_LIBRARIES "OpenGL32.lib")
-elseif(EMSCRIPTEN)
-    # Emscripten build
-    add_compile_definitions(
-        "GL_GLEXT_PROTOTYPES"
-        "GL3_PROTOTYPES"
-    )
-    add_compile_options("-pthread" "-fexceptions")
-    add_link_options(
-        "-sLEGACY_GL_EMULATION=0"
-        "-sUSE_WEBGL2=1"
-        "-sFULL_ES3=1"
-        "-fexceptions"
-    )
 else()
     message(FATAL_ERROR "Unkown platform!")
 endif()
@@ -113,12 +98,6 @@ if (NOT MSVC)
         "-Wno-nested-anon-types"
         "-Wno-gnu-anonymous-struct"
     )
-    if (EMSCRIPTEN)
-        list(APPEND BASE_OPTIONS
-            # fmt warnings
-            "-Wno-deprecated-literal-operator"
-        )
-    endif()
 else()
     set(BASE_OPTIONS
         "/W4"
@@ -129,12 +108,10 @@ else()
         #"/fsanitize=address"  # Doesn't work without Visual Studio
     )
 endif()
-if (NOT EMSCRIPTEN)
-    set(BASE_LIBRARIES
-        glfw
-        glad::glad
-    )
-endif()
+set(BASE_LIBRARIES
+    glfw
+    glad::glad
+)
 
 set(HEADERS
     demos/app.hpp
@@ -149,6 +126,7 @@ set(HEADERS
     txt/shader.hpp
     txt/text_engine.hpp
     txt/texture.hpp
+    txt/types.hpp
     txt/utility.hpp
     txt/window.hpp
 )

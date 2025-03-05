@@ -1,5 +1,6 @@
 #ifndef TXT_UTILITY_HPP
 #define TXT_UTILITY_HPP
+
 #include <memory>
 #include <cstddef>
 #include <limits>
@@ -9,7 +10,6 @@
 #include <numbers>
 
 namespace txt {
-
 template <typename T>
 concept Integral = std::is_integral<T>::value;
 

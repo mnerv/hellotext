@@ -5,11 +5,7 @@
 #include "fmt/format.h"
 #include "glm/gtc/type_ptr.hpp"
 
-#ifdef __EMSCRIPTEN__
-#include "GL/gl.h"
-#else
 #include "glad/glad.h"
-#endif
 
 namespace txt {
 auto make_shader(std::string const& vs_src, std::string const& fs_src) -> shader_ref_t {
@@ -37,11 +33,7 @@ auto shader::id() const -> std::uint32_t {
 
 
 auto shader::upload_num([[maybe_unused]]std::string const& name, [[maybe_unused]]std::uint32_t const& value) -> void {
-#ifndef __EMSCRIPTEN__
     glUniform1ui(uniform_location(name), value);
-#else
-    glUniform1f(uniform_location(name), float(value));
-#endif
 }
 auto shader::upload_num(std::string const& name, std::int32_t const& value) -> void {
     glUniform1i(uniform_location(name), value);
@@ -51,9 +43,7 @@ auto shader::upload_num(std::string const& name, float const& value) -> void {
 }
 
 auto shader::upload_nums([[maybe_unused]]std::string const& name, [[maybe_unused]]std::int32_t const& count, [[maybe_unused]]std::uint32_t const* values) -> void {
-#ifndef __EMSCRIPTEN__
     glUniform1uiv(uniform_location(name), count, values);
-#endif
 }
 auto shader::upload_nums(std::string const& name, std::int32_t const& count, float const* values) -> void {
     glUniform1fv(uniform_location(name), count, values);

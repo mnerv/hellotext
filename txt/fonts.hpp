@@ -38,7 +38,7 @@ using character_range_t = std::array<std::uint32_t, 2>;
 };
 
 struct font_load_params {
-    std::string       filename;
+    std::string       filepath;
     std::uint32_t     size;
     text_render_mode  render_mode{text_render_mode::normal};
     character_range_t ranges{default_character_range};
@@ -55,47 +55,53 @@ struct glyph {
 
 class font {
 public:
+    using glyph_map = std::unordered_map<std::uint32_t, glyph>;
+    using glyph_it  = glyph_map::iterator;
+
+public:
+    font();
     ~font();
     font(font const& other) = delete;
     font(font&& other) noexcept;
     auto operator=(font const& other) -> font& = delete;
     auto operator=(font&& other) noexcept -> font&;
 
-    auto filename() const -> std::string const& { return m_filename; }
+    auto filepath() const -> std::string const& { return m_filepath; }
     auto size() const -> std::uint32_t { return m_size; }
     auto render_mode() const -> text_render_mode { return m_render_mode; }
     auto name() const -> std::string const& { return m_name; }
     auto color_channels() const -> std::size_t { return m_color_channels; }
-    auto find(std::uint32_t const& code) const -> glyph const&;
+    auto find(std::uint32_t const& code) -> glyph_it;
 
 private:
     friend font_manager;
     font(FT_Face face, font_load_params const& params);
 
 private:
+    auto load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void;
+
+private:
     FT_Face          m_face;
-    std::string      m_filename;
+    std::string      m_filepath;
     std::uint32_t    m_size;
     text_render_mode m_render_mode;
     std::string      m_name;
-    std::size_t      m_color_channels;
-    std::unordered_map<std::uint32_t, glyph> m_glyphs;
+    std::size_t      m_color_channels{1};
+    std::int32_t     m_flags{0x00};
+    glyph_map        m_glyphs{};
 };
 
 class font_manager {
 public:
-    using fonts_t = std::vector<txt::font>;
+    using fonts_t = std::unordered_map<std::string, font>;
 
 public:
     font_manager();
     ~font_manager();
-    font_manager(font_manager const& other);
-    // font_manager(font_manager&& other) noexcept;
-    auto operator=(font_manager const& other) -> font_manager&;
-    // auto operator=(font_manager&& other) noexcept -> font_manager&;
 
     auto fonts() const -> fonts_t const& { return m_fonts; }
-    auto load(font_load_params const& params) -> void;
+    auto load(font_load_params const& params, std::string const& name = "") -> void;
+    auto load(font& font, std::uint32_t const& code) -> void;
     auto find(std::string const& name) const -> fonts_t::const_iterator;
     auto erase(fonts_t::const_iterator const& it) -> void;
 

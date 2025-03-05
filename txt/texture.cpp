@@ -1,10 +1,6 @@
 #include "texture.hpp"
 
-#ifndef __EMSCRIPTEN__
 #include "glad/glad.h"
-#else
-#include "GL/gl.h"
-#endif
 
 namespace txt {
 constexpr auto gl_texture_internal_format(pixel_fmt value) -> GLint {

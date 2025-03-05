@@ -1,45 +1,13 @@
 #ifndef TXT_BUFFER_HPP
 #define TXT_BUFFER_HPP
 
-#include <cstddef>
-#include <cstdint>
 #include <memory>
+#include "types.hpp"
 #include "utility.hpp"
 
-#ifdef __EMSCRIPTEN__
-#include "GL/gl.h"
-#else
 #include "glad/glad.h"
-#endif
 
 namespace txt {
-// OpenGL Type: https://www.khronos.org/opengl/wiki/OpenGL_Type
-enum class type : std::uint32_t {
-    unknown = 0,
-    boolean,
-    i8,    u8,
-    i16,   u16,
-    i32,   u32,   p32,
-    i64,   u64,   p64,
-    f16,   f32,   f64,
-    vec2,  vec3,  vec4,
-    ivec2, ivec3, ivec4,
-    dvec2, dvec3, dvec4,
-    mat2,  mat3,  mat4,
-};
-
-enum class usage : std::uint32_t {
-    stream_draw,
-    stream_read,
-    stream_copy,
-    static_draw,
-    static_read,
-    static_copy,
-    dynamic_draw,
-    dynamic_read,
-    dynamic_copy
-};
-
 inline constexpr auto gl_usage(txt::usage const& usage) -> GLenum {
     switch (usage) {
         case txt::usage::stream_draw:  return GL_STREAM_DRAW;

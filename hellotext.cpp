@@ -9,34 +9,41 @@
 #include "txt/window.hpp"
 #include "txt/image.hpp"
 #include "txt/renderer.hpp"
+#include "txt/fonts.hpp"
 
 static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> void {
-    auto window = txt::make_window({"Hello, Text!"});
-    txt::renderer::init(window);
-    window->setup();
+    auto win = txt::make_window({"Hello, Text!"});
+    auto rdr = txt::renderer::init(win);
+    rdr->load_font({
+        "./res/fonts/Cozette/CozetteVector.ttf",
+        13,
+        txt::text_render_mode::raster,
+    });
 
-    window->add_event_listener([&](txt::key_down_event const& e) {
+    win->add_event_listener([&](txt::mouse_move_event const& e) {
         fmt::print("{}\n", e.str());
     });
-    window->add_event_listener([&](txt::key_up_event const& e) {
-        if (e.keycode() == txt::keycode::Q) window->close();
-        if (e.keycode() == txt::keycode::F) window->fullscreen();
+    win->add_event_listener([&](txt::key_down_event const& e) {
+        fmt::print("{}\n", e.str());
+    });
+    win->add_event_listener([&](txt::key_up_event const& e) {
+        if (e.keycode() == txt::keycode::Q) win->close();
+        if (e.keycode() == txt::keycode::F) win->fullscreen();
     });
 
-    txt::loop(window, [&] (double){
-        // txt::begin_frame();
-        // txt::viewport(0, 0, window->buffer_width(), window->buffer_height());
-        // txt::clear_color(0x000000);
-        // txt::clear();
-        //
-        // txt::rect({125.0f, 125.0f}, {100.0f, 50.0f});
-        // txt::rect({125.0f, 125.0f}, {2.0f, 2.0f}, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f});
-        //
-        // txt::end_frame();
+    while (!win->should_close()) {
+        rdr->begin();
+        rdr->viewport(0, 0, win->buffer_width(), win->buffer_height());
+        rdr->clear_color(0x000000);
+        rdr->clear();
 
-        window->swap();
-        window->poll();
-    });
+        rdr->text("Hello, World!", {0.0f, 0.0f});
+
+        rdr->end();
+
+        win->swap();
+        win->poll();
+    }
 }
 
 auto main(int argc, char const* argv[]) -> int {

@@ -63,6 +63,7 @@ public:
     auto is_focused() const noexcept -> bool;
     auto is_hovered() const noexcept -> bool;
     auto is_maximized() const noexcept -> bool;
+    auto is_init() const noexcept -> bool;
 
     auto time() const -> double;
     auto stopwatch() const -> double;
@@ -100,7 +101,6 @@ public:
     auto add_event_listener(event_type const& type, EventFunc auto const& fn) -> void {
         add_event_listener(type, std::size_t(&fn), fn);
     }
-
     auto remove_event_listener(event_type const& type, EventFunc auto const& fn) -> void {
         remove_event_listener(type, std::size_t(&fn));
     }
@@ -130,6 +130,7 @@ private:
     double        m_mouse_x{0.0};
     double        m_mouse_y{0.0};
     std::unordered_map<event_type, event_map> m_listeners{};
+    bool          m_is_init{false};
 
 private:
     void* m_native{nullptr};
@@ -137,12 +138,6 @@ private:
 
 using window_ref_t = ref<window>;
 auto make_window(window::props const& props) -> window_ref_t;
-
-using loop_t = std::function<void()>;
-auto loop(window_ref_t window, loop_t fn) -> void;
-
-using loop_dt_t = std::function<void(double)>;
-auto loop(window_ref_t window, loop_dt_t fn) -> void;
 } // namespace txt
 
 #endif  // TXT_WINDOW_HPP

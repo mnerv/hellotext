@@ -152,6 +152,7 @@ private:
 using image_u8 = image<std::uint8_t>;
 using image_u8_ref_t = ref<image_u8>;
 
+auto make_image_u8(std::uint8_t const* data, std::size_t width, std::size_t height, std::size_t channels) -> image_u8_ref_t;
 auto write_png(std::string_view const& filename, image_u8 const& img) -> void;
 auto load_image(std::string const& filename, bool flip = false) -> image_u8;
 } // namespace txt

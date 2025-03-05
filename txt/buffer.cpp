@@ -116,5 +116,4 @@ auto attribute_descriptor::compute_stride(attribute_descriptions_t const& layout
         return acc + size;
     });
 }
-
 } // namespace txt

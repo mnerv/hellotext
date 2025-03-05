@@ -6,18 +6,9 @@
 #include "fmt/format.h"
 #include "utf8.h"
 
-#ifndef __EMSCRIPTEN__
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 #include "glad/glad.h"
-#else
-#include "emscripten.h"
-#include "emscripten/emscripten.h"
-#include "emscripten/html5.h"
-#include "GL/gl.h"
-
-static auto const TARGET_NAME = "#canvas";
-#endif
 
 namespace txt {
 auto make_window(window::props const& props) -> window_ref_t {
@@ -72,6 +63,8 @@ auto window::setup() -> void {
     std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
         fn.second(e);
     });
+
+    m_is_init = true;
 }
 auto window::fullscreen() -> void {
     int monitor_count = 0;
@@ -96,6 +89,7 @@ auto window::content_scale_y() const noexcept -> double { return m_content_scale
 auto window::is_focused() const noexcept -> bool { return m_is_focused; }
 auto window::is_hovered() const noexcept -> bool { return m_is_hovered; }
 auto window::is_maximized() const noexcept -> bool { return m_is_maximized; }
+auto window::is_init() const noexcept -> bool { return m_is_init; }
 
 auto window::time() const -> double {
     auto const t = std::chrono::system_clock::now();
@@ -112,17 +106,10 @@ auto window::close() -> void {
     m_should_close = true;
 }
 auto window::poll() -> void {
-#ifndef __EMSCRIPTEN__
     glfwPollEvents();
-#else
-#endif  // __EMSCRIPTEN__
 }
 auto window::swap() -> void {
-#ifndef __EMSCRIPTEN__
     glfwSwapBuffers(static_cast<GLFWwindow*>(m_native));
-#else
-    emscripten_webgl_commit_frame();
-#endif  // __EMSCRIPTEN__
 }
 
 auto window::add_event_listener(event_type const& type, std::size_t const& id, event_fn const& fn) -> void {
@@ -141,7 +128,6 @@ auto window::remove_event_listener(event_type const& type, std::size_t const& id
     }
 }
 
-#ifndef __EMSCRIPTEN__
 static auto setup_opengl() -> void {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
@@ -385,338 +371,5 @@ auto window::setup_native() -> void {
 auto window::clean_native() -> void {
     glfwDestroyWindow(static_cast<GLFWwindow*>(m_native));
     glfwTerminate();
-}
-#else
-static auto convert_html_key(char const* key) -> txt::keycode {
-    // std::u32string const code_str = utf8::utf8to32(std::string_view{key});
-    // fmt::print("{}, {}\n", key, code_str.size());
-    std::string const str_utf8{key};
-    if (str_utf8.size() == 1 && str_utf8.at(0) > 32) {
-        return txt::keycode(str_utf8[0]);
-    } else {
-        return txt::keycode::Unknown;
-    }
-}
-
-auto window::setup_native() -> void {
-    static auto const target_name = "#canvas";
-    emscripten_set_window_title(m_title.c_str());
-    emscripten_set_canvas_element_size(TARGET_NAME, std::int32_t(m_buffer_width), std::int32_t(m_buffer_height));
-
-    // Create WebGL context
-    EmscriptenWebGLContextAttributes attrs;
-    emscripten_webgl_init_context_attributes(&attrs);
-    attrs.majorVersion = 2;
-    attrs.minorVersion = 0;
-    // attrs.explicitSwapControl = true;
-    attrs.powerPreference = EM_WEBGL_POWER_PREFERENCE_DEFAULT;
-    auto* context = new int();
-    *context = emscripten_webgl_create_context(TARGET_NAME, &attrs);
-    [[maybe_unused]]auto res = emscripten_webgl_make_context_current(*context);
-    // TODO: Check make contet result if it was successful
-    m_native = context;
-
-    double width, height;
-    emscripten_get_element_css_size(TARGET_NAME, &width, &height);
-    auto const device_pixel_ratio = emscripten_get_device_pixel_ratio();
-    m_width         = std::uint32_t(width);
-    m_height        = std::uint32_t(height);
-    m_buffer_width  = std::uint32_t(width  * device_pixel_ratio);
-    m_buffer_height = std::uint32_t(height * device_pixel_ratio);
-    m_content_scale_x = device_pixel_ratio;
-    m_content_scale_y = device_pixel_ratio;
-    emscripten_set_canvas_element_size(TARGET_NAME, std::int32_t(m_buffer_width), std::int32_t(m_buffer_height));
-
-    // Callbacks
-    emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
-    [](int, EmscriptenUiEvent const*, void* userData) {
-        auto ptr = static_cast<window*>(userData);
-        double width;
-        double height;
-        emscripten_get_element_css_size(TARGET_NAME, &width, &height);
-        if (std::uint32_t(width) != ptr->m_width || std::uint32_t(height) != ptr->m_height) {
-            auto const device_pixel_ratio = emscripten_get_device_pixel_ratio();
-            ptr->m_width         = std::uint32_t(width);
-            ptr->m_height        = std::uint32_t(height);
-            ptr->m_buffer_width  = std::uint32_t(width  * device_pixel_ratio);
-            ptr->m_buffer_height = std::uint32_t(height * device_pixel_ratio);
-            ptr->m_content_scale_x = device_pixel_ratio;
-            ptr->m_content_scale_y = device_pixel_ratio;
-            emscripten_set_canvas_element_size(TARGET_NAME, std::int32_t(ptr->m_buffer_width), std::int32_t(ptr->m_buffer_height));
-
-            {
-                auto const e = window_resize_event(0, ptr->m_width, ptr->m_height);
-                auto const it = ptr->m_listeners.find(event_type::window_resize);
-                if (it != std::end(ptr->m_listeners)) {
-                    auto const& fns = it->second;
-                    std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-                        fn.second(e);
-                    });
-                }
-            }
-            {
-                auto const e = framebuffer_resize_event(0, ptr->m_buffer_width, ptr->m_buffer_height);
-                auto const it = ptr->m_listeners.find(event_type::framebuffer_resize);
-                if (it != std::end(ptr->m_listeners)) {
-                    auto const& fns = it->second;
-                    std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-                        fn.second(e);
-                    });
-                }
-            }
-            {
-                auto const e = content_scale_event(0, ptr->m_content_scale_x, ptr->m_content_scale_y);
-                auto const it = ptr->m_listeners.find(event_type::content_scale);
-                if (it != std::end(ptr->m_listeners)) {
-                    auto const& fns = it->second;
-                    std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-                        fn.second(e);
-                    });
-                }
-            }
-        }
-        return EM_FALSE;
-    });
-    emscripten_set_focus_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenFocusEvent const*, void* userData) {
-        auto ptr = static_cast<window*>(userData);
-        ptr->m_is_focused = true;
-        auto const e = window_focus_event(0, ptr->m_is_focused);
-
-        auto const it = ptr->m_listeners.find(event_type::window_focus);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_blur_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenFocusEvent const*, void* userData) {
-        auto ptr = static_cast<window*>(userData);
-        ptr->m_is_focused = false;
-        auto const e = window_focus_event(0, ptr->m_is_focused);
-
-        auto const it = ptr->m_listeners.find(event_type::window_focus);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_mousemove_callback(target_name, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenMouseEvent const* mouseEvent, void *userData) {
-        auto ptr = static_cast<window*>(userData);
-        ptr->m_mouse_x = double(mouseEvent->clientX);
-        ptr->m_mouse_y = double(mouseEvent->clientY);
-        auto const e = mouse_move_event(ptr->m_mouse_x, ptr->m_mouse_y);
-
-        auto const it = ptr->m_listeners.find(event_type::mouse_move);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_mousedown_callback(target_name, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenMouseEvent const* mouseEvent, void *userData) {
-        auto ptr = static_cast<window*>(userData);
-        ptr->m_mouse_x = double(mouseEvent->clientX);
-        ptr->m_mouse_y = double(mouseEvent->clientY);
-        std::uint32_t mod_flag = 0x00;
-        mod_flag |= (std::uint32_t(mouseEvent->ctrlKey)  << std::uint32_t(modifier_flags::flag::control));
-        mod_flag |= (std::uint32_t(mouseEvent->shiftKey) << std::uint32_t(modifier_flags::flag::shift));
-        mod_flag |= (std::uint32_t(mouseEvent->altKey)   << std::uint32_t(modifier_flags::flag::alternative));
-        mod_flag |= (std::uint32_t(mouseEvent->metaKey)  << std::uint32_t(modifier_flags::flag::super));
-
-        auto const e = mouse_down_event(mouse_button(mouseEvent->button), {mod_flag}, ptr->m_mouse_x, ptr->m_mouse_y);
-        auto const it = ptr->m_listeners.find(event_type::mouse_down);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_mouseup_callback(target_name, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenMouseEvent const* mouseEvent, void *userData) {
-        auto ptr = static_cast<window*>(userData);
-        ptr->m_mouse_x = double(mouseEvent->clientX);
-        ptr->m_mouse_y = double(mouseEvent->clientY);
-        std::uint32_t mod_flag = 0x00;
-        mod_flag |= (std::uint32_t(mouseEvent->ctrlKey)  << std::uint32_t(modifier_flags::flag::control));
-        mod_flag |= (std::uint32_t(mouseEvent->shiftKey) << std::uint32_t(modifier_flags::flag::shift));
-        mod_flag |= (std::uint32_t(mouseEvent->altKey)   << std::uint32_t(modifier_flags::flag::alternative));
-        mod_flag |= (std::uint32_t(mouseEvent->metaKey)  << std::uint32_t(modifier_flags::flag::super));
-
-        auto const e = mouse_up_event(mouse_button(mouseEvent->button), {mod_flag}, ptr->m_mouse_x, ptr->m_mouse_y);
-        auto const it = ptr->m_listeners.find(event_type::mouse_up);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_wheel_callback(target_name, this, EM_FALSE,
-    [](int, EmscriptenWheelEvent const* wheelEvent, void *userData) {
-        auto ptr = static_cast<window*>(userData);
-        auto const e = mouse_wheel_event(wheelEvent->deltaX, wheelEvent->deltaY, ptr->m_mouse_x, ptr->m_mouse_y);
-        auto const it = ptr->m_listeners.find(event_type::mouse_wheel);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenKeyboardEvent const* keyEvent, void *userData) {
-        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
-        // TODO: Handle key down
-        if (keyEvent->ctrlKey) {
-            fmt::print("Control Key\n");
-        } else if (keyEvent->shiftKey) {
-            fmt::print("Shift Key\n");
-        } else if (keyEvent->altKey) {
-            fmt::print("Option Key\n");
-        } else if (keyEvent->metaKey) {
-            fmt::print("Super Key\n");
-        } else if (keyEvent->repeat) {
-            fmt::print("{} Repeat\n", keyEvent->key);
-        } else {
-            fmt::print("{}\n", keyEvent->key);
-        }
-        auto const key = convert_html_key(keyEvent->key);
-
-        auto const e = key_down_event(key, txt::scancode::reserved, {0x00}, false);
-        auto const it = ptr->m_listeners.find(event_type::key_down);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenKeyboardEvent const* keyEvent, void *userData) {
-        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
-        // TODO: Handle key up
-        return EM_FALSE;
-    });
-    // Touch Events
-    emscripten_set_touchstart_callback(target_name, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
-        auto ptr = static_cast<window*>(userData);
-
-        // TODO: Handle modifiers
-        auto const it = ptr->m_listeners.find(event_type::touch_start);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-
-        auto const size = std::size_t(touchEvent->numTouches) <= max_touch_points ? std::size_t(touchEvent->numTouches) : max_touch_points;
-        auto const touches = touchEvent->touches;
-        touch_points_t points{};
-        for (std::size_t i = 0; i < size; ++i) {
-            points[i] = touch_point(std::size_t(touches[i].identifier), double(touches[i].clientX), double(touches[i].clientY));
-        }
-
-        auto const e = touch_start_event(size, points);
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_touchmove_callback(target_name, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
-        auto ptr = static_cast<window*>(userData);
-
-        auto const it = ptr->m_listeners.find(event_type::touch_move);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-
-        auto const size = std::size_t(touchEvent->numTouches) <= max_touch_points ? std::size_t(touchEvent->numTouches) : max_touch_points;
-        auto const touches = touchEvent->touches;
-        touch_points_t points{};
-        for (std::size_t i = 0; i < size; ++i) {
-            points[i] = touch_point(std::size_t(touches[i].identifier), double(touches[i].clientX), double(touches[i].clientY));
-        }
-
-        auto const e = touch_move_event(size, points);
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_touchend_callback(target_name, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
-        auto ptr = static_cast<window*>(userData);
-
-        auto const it = ptr->m_listeners.find(event_type::touch_end);
-        if (it == std::end(ptr->m_listeners)) return EM_FALSE;
-        auto const& fns = it->second;
-
-        auto const size = std::size_t(touchEvent->numTouches) <= max_touch_points ? std::size_t(touchEvent->numTouches) : max_touch_points;
-        auto const touches = touchEvent->touches;
-        touch_points_t points{};
-        for (std::size_t i = 0; i < size; ++i) {
-            points[i] = touch_point(std::size_t(touches[i].identifier), double(touches[i].clientX), double(touches[i].clientY));
-        }
-
-        auto const e = touch_end_event(size, points);
-        std::for_each(std::begin(fns), std::end(fns), [&](auto const& fn) {
-            fn.second(e);
-        });
-        return EM_TRUE;
-    });
-    emscripten_set_touchcancel_callback(target_name, this, EM_FALSE,
-    [](int, [[maybe_unused]]EmscriptenTouchEvent const* touchEvent, void* userData) {
-        [[maybe_unused]]auto ptr = static_cast<window*>(userData);
-        return EM_FALSE;
-    });
-}
-auto window::clean_native() -> void {
-    delete static_cast<int*>(m_native);
-}
-#endif  // __EMSCRIPTEN__
-
-auto loop(window_ref_t window, loop_t fn) -> void {
-    static auto _window = window;
-    static auto _fn     = fn;
-
-#ifndef __EMSCRIPTEN__
-    while (!_window->should_close()) _fn();
-#else
-    emscripten_set_main_loop([] {
-        _fn();
-        if (_window->should_close()) emscripten_cancel_main_loop();
-    }, -1, EM_TRUE);
-#endif  // __EMSCRIPTEN__
-}
-
-auto loop(window_ref_t window, loop_dt_t fn) -> void {
-    static auto _window = window;
-    static auto _fn     = fn;
-    static auto previous_time = window->stopwatch();
-
-    // TODO: Fix timestep
-#ifndef __EMSCRIPTEN__
-    while (!_window->should_close()) {
-        auto const now = window->stopwatch();
-        auto const delta = now - previous_time;
-        previous_time = now;
-        _fn(delta);
-    }
-#else
-    emscripten_set_main_loop([] {
-        auto const now = _window->stopwatch();
-        auto const delta = now - previous_time;
-        previous_time = now;
-        _fn(delta);
-        if (_window->should_close()) emscripten_cancel_main_loop();
-    }, -1, EM_TRUE);
-#endif  // __EMSCRIPTEN__
 }
 } // namespace txt

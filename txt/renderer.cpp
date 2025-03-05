@@ -6,7 +6,6 @@
 #include "glm/gtc/type_ptr.hpp"
 
 namespace txt {
-static renderer::local_t s_instance = nullptr;
 [[maybe_unused]]static constexpr float QUAD_VERTICES[]{
 //     x,    y,    z,     u,   v
     -0.5, -0.5,  0.0,   0.0, 0.0,
@@ -26,41 +25,46 @@ auto hsb2rgb(float hue, float saturation, float brightness) -> glm::vec3 {
     return brightness * glm::mix(glm::vec3(1.0f), rgb, saturation);
 }
 
-auto renderer::init(window_ref_t window) -> void {
-    if (s_instance != nullptr) throw std::runtime_error("txt::render has already been initialised!");
-    s_instance = std::make_unique<renderer>(window);
-}
-auto renderer::instance() -> local_t& {
-    return s_instance;
+auto renderer::init(window_ref_t window) -> renderer::local_t {
+    if (!window->is_init()) window->setup();
+    return std::make_unique<renderer>(window);
 }
 
-auto begin_frame() -> void {
-    s_instance->begin();
-}
-auto end_frame() -> void {
-    s_instance->end();
-}
-auto viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void {
-    renderer::viewport(x, y, width, height);
-}
-auto clear_color(std::uint32_t color, float alpha) -> void {
-    renderer::clear_color(color, alpha);
-}
-auto clear(GLenum bitmask) -> void {
-    renderer::clear(bitmask);
-}
-auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, glm::vec4 const& round) -> void {
-    s_instance->rect(position, size, rotation, color, round);
-}
-auto rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, glm::vec4 const& round) -> void {
-    s_instance->rect(position, size, rotation, texture, uv, uv_size, round);
-}
 
 renderer::renderer(window_ref_t window) : m_window(window) {
-    // window->add_event_listener(std::bind(&renderer::setup, this, std::placeholders::_1));
-    window->add_event_listener([&](setup_event const& e){ setup(e); });
+    m_rect_default_shader = make_shader(
+        read_text("./shaders/opengl/base.vert"),
+        read_text("./shaders/opengl/color.frag")
+    );
+    m_rect_texture_shader = make_shader(
+        read_text("./shaders/opengl/base.vert"),
+        read_text("./shaders/opengl/texture.frag")
+    );
+    m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
+    m_rect_vertex_buffer = make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::dynamic_draw, {
+        {type::vec4, false, 1},
+        {type::vec3, false, 1},
+        {type::vec3, false, 1},
+        {type::vec3, false, 1},
+        {type::vec2, false, 1},
+        {type::vec2, false, 1}
+    });
+    m_rect_descriptor = make_attribute_descriptor();
+    m_rect_descriptor->add(make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::static_draw, {
+        {type::vec3, false, 0},
+        {type::vec2, false, 0},
+    }));
+    m_rect_descriptor->add(m_rect_vertex_buffer);
+
+    m_text_engine = make_ref<text_engine>(m_window);
 }
+
 renderer::~renderer() { }
+
+auto renderer::load_font(font_load_params const& params) -> void {
+    m_text_engine->load(params);
+}
+
 auto renderer::begin() -> void {
     m_view = glm::lookAt(glm::vec3{0.0, 0.0, 1023.0}, glm::vec3{0.0, 0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0});
     m_projection = glm::ortho(0.0f, float(m_window->width()), 0.0f, float(m_window->height()), 0.1f, 1024.0f);
@@ -68,6 +72,8 @@ auto renderer::begin() -> void {
     m_color_rect_size = 0;
     for (auto& [st, data] : m_shader_texture_rects)
         st.size = 0;
+
+    m_text_engine->begin();
 }
 
 auto renderer::end() -> void {
@@ -101,6 +107,7 @@ auto renderer::end() -> void {
         m_rect_index_buffer->bind();
         glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_rect_index_buffer->size()), gl_type(m_rect_index_buffer->type()), nullptr, GLsizei(m_color_rect_size));
     }
+    m_text_engine->end();
 }
 
 auto renderer::viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void {
@@ -162,54 +169,13 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float cons
 }
 
 auto renderer::text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color, glm::vec2 const& scale) -> void {
-    (void)str;
-    (void)position;
-    (void)color;
-    (void)scale;
+    m_text_engine->draw(str, position, color, scale);
+    m_depth += m_depth_step;
 }
 
 auto renderer::text_size(std::string const& str, glm::vec2 const& scale) -> glm::vec2 {
-    (void)str;
-    (void)scale;
-    return {};
+    return m_text_engine->text_size(str, scale);
 }
 
-auto renderer::setup(setup_event const& e) -> void {
-    fmt::print("renderer: {}\n", e.str());
-
-// #ifndef __EMSCRIPTEN__
-//     m_rect_default_shader = make_shader(
-//         read_text("./shaders/opengl/base.vert"),
-//         read_text("./shaders/opengl/color.frag")
-//     );
-//     m_rect_texture_shader = make_shader(
-//         read_text("./shaders/opengl/base.vert"),
-//         read_text("./shaders/opengl/texture.frag")
-//     );
-// #else
-//     m_rect_default_shader = make_shader(
-//         read_text("./shaders/webgl/base.vert"),
-//         read_text("./shaders/webgl/color.frag")
-//     );
-//     m_rect_texture_shader = make_shader(
-//         read_text("./shaders/webgl/base.vert"),
-//         read_text("./shaders/webgl/texture.frag")
-//     );
-// #endif
-//     m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
-//     m_rect_vertex_buffer = make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::dynamic_draw, {
-//         {type::vec4, false, 1},
-//         {type::vec3, false, 1},
-//         {type::vec3, false, 1},
-//         {type::vec3, false, 1},
-//         {type::vec2, false, 1},
-//         {type::vec2, false, 1}
-//     });
-//     m_rect_descriptor = make_attribute_descriptor();
-//     m_rect_descriptor->add(make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::static_draw, {
-//         {type::vec3, false, 0},
-//         {type::vec2, false, 0},
-//     }));
-//     m_rect_descriptor->add(m_rect_vertex_buffer);
-}
+auto renderer::zdepth() const -> float { return m_depth; }
 } // namespace txt
