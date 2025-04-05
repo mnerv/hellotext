@@ -1,8 +1,4 @@
-#include <cstdint>
-#include <vector>
-#include <string_view>
-#include <random>
-#include <tuple>
+#include <span>
 
 #include "fmt/format.h"
 
@@ -11,17 +7,22 @@
 #include "txt/renderer.hpp"
 #include "txt/fonts.hpp"
 
-static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> void {
+static auto entry([[maybe_unused]]std::span<char const*> const& args) -> void {
     auto win = txt::make_window({"Hello, Text!"});
-    auto rdr = txt::renderer::init(win);
-    rdr->load_font({
+    auto ren = txt::make_renderer(win);
+    ren->load_font({
         "./res/fonts/Cozette/CozetteVector.ttf",
         13,
         txt::text_render_mode::raster,
     });
 
+    auto mouse_x = 0.0f;
+    auto mouse_y = 0.0f;
+
     win->add_event_listener([&](txt::mouse_move_event const& e) {
         fmt::print("{}\n", e.str());
+        mouse_x = (float)e.x();
+        mouse_y = (float)win->buffer_height() - (float)e.y();
     });
     win->add_event_listener([&](txt::key_down_event const& e) {
         fmt::print("{}\n", e.str());
@@ -32,14 +33,14 @@ static auto entry([[maybe_unused]]std::vector<std::string_view> const& args) -> 
     });
 
     while (!win->should_close()) {
-        rdr->begin();
-        rdr->viewport(0, 0, win->buffer_width(), win->buffer_height());
-        rdr->clear_color(0x000000);
-        rdr->clear();
+        ren->begin();
+        ren->viewport(0, 0, win->buffer_width(), win->buffer_height());
+        ren->clear_color(0x000000);
+        ren->clear();
 
-        rdr->text("Hello, World!", {0.0f, 0.0f});
+        ren->text("Hello, World!", {0.0f, 0.0f});
 
-        rdr->end();
+        ren->end();
 
         win->swap();
         win->poll();

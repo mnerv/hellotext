@@ -67,7 +67,6 @@ struct shader_texture_pair {
 class renderer {
 public:
     using local_t = std::unique_ptr<renderer>;
-    static auto init(window_ref_t window) -> local_t;
 
 public:
     renderer(window_ref_t window);
@@ -90,19 +89,9 @@ public:
               glm::vec4 const& round) -> void;
 
     auto rect(glm::vec2 const& position, glm::vec2 const& size,
-              float const& rotation, texture_ref_t texture,
-              glm::vec2 const& uv, glm::vec2 const& uv_size,
-              glm::vec4 const& round) -> void;
-
-    auto rect(glm::vec2 const& position, glm::vec2 const& size,
               float const& rotation, shader_ref_t shader,
               texture_ref_t texture, glm::vec2 const& uv,
-              glm::vec2 const& uv_size, glm::vec4 const& round) -> void;
-
-    auto rect(glm::vec2 const& position, glm::vec2 const& size,
-              float const& rotation, texture_ref_t texture,
-              glm::vec2 const& uv, glm::vec2 const& uv_size,
-              float const& zdepth = 0.0f) -> void;
+              glm::vec2 const& uv_size, float const& z_offset = 0.0f) -> void;
 
     auto text(std::string const& str, glm::vec2 const& position,
               glm::vec4 const& color = {1.0f, 1.0f, 1.0f, 1.0f},
@@ -142,6 +131,9 @@ private:
     glm::mat4 m_view{1.0f};
     glm::mat4 m_projection{1.0f};
 };
+
+using renderer_local_t = local<renderer>;
+auto make_renderer(window_ref_t window) -> renderer_local_t;
 }  // namespace txt
 
 #endif  // TXT_RENDERER_HPP

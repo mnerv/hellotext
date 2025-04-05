@@ -92,6 +92,7 @@ if (NOT MSVC)
         "-Werror"
         # fmt warnings
         "-Wno-unknown-attributes"
+        "-Wno-deprecated-literal-operator"
         # glad warnings
         "-Wno-language-extension-token"
         # glm warnings
@@ -108,15 +109,9 @@ else()
         #"/fsanitize=address"  # Doesn't work without Visual Studio
     )
 endif()
-set(BASE_LIBRARIES
-    glfw
-    glad::glad
-)
 
+# libtxtr
 set(HEADERS
-    demos/app.hpp
-    demos/text_bounce.hpp
-
     txt/buffer.hpp
     txt/event.hpp
     txt/fonts.hpp
@@ -140,6 +135,36 @@ set(SOURCES
     txt/text_engine.cpp
     txt/texture.cpp
     txt/window.cpp
+)
+add_library(libtxtr STATIC ${HEADERS} ${SOURCES})
+target_include_directories(libtxtr
+    PRIVATE
+    ${PROJECT_SOURCE_DIR}/txt
+    PUBLIC
+    ${PROJECT_SOURCE_DIR}
+)
+target_compile_features(libtxtr PRIVATE cxx_std_23)
+target_compile_options(libtxtr PRIVATE ${BASE_OPTIONS})
+target_link_libraries(libtxtr
+    PRIVATE
+    ${PLATFORM_LINK_LIBRARIES}
+    glfw
+    fmt
+    utf8::cpp
+    stb::stb
+
+    PUBLIC
+    freetype
+    glad
+    glm
+)
+source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" FILES ${HEADERS} ${SOURCES})
+
+set(HEADERS
+    demos/app.hpp
+    demos/text_bounce.hpp
+)
+set(SOURCES
     hellotext.cpp
 )
 add_executable(hellotext ${HEADERS} ${SOURCES})
@@ -149,11 +174,7 @@ target_compile_options(hellotext PRIVATE ${BASE_OPTIONS})
 target_link_libraries(hellotext
     PRIVATE
     ${PLATFORM_LINK_LIBRARIES}
-    ${BASE_LIBRARIES}
-    freetype
+    libtxtr
     fmt
-    glm
-    utf8::cpp
-    stb::stb
 )
 source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" FILES ${HEADERS} ${SOURCES})

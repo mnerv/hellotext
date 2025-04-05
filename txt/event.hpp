@@ -7,8 +7,8 @@
 
 #include "utility.hpp"
 #include "input.hpp"
+
 #include "fmt/format.h"
-#include "window.hpp"
 
 namespace txt {
 enum class event_category : std::uint16_t {

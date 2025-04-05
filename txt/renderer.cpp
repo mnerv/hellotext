@@ -25,11 +25,11 @@ auto hsb2rgb(float hue, float saturation, float brightness) -> glm::vec3 {
     return brightness * glm::mix(glm::vec3(1.0f), rgb, saturation);
 }
 
-auto renderer::init(window_ref_t window) -> renderer::local_t {
+
+auto make_renderer(window_ref_t window) -> renderer_local_t {
     if (!window->is_init()) window->setup();
     return std::make_unique<renderer>(window);
 }
-
 
 renderer::renderer(window_ref_t window) : m_window(window) {
     m_rect_default_shader = make_shader(
@@ -40,8 +40,13 @@ renderer::renderer(window_ref_t window) : m_window(window) {
         read_text("./shaders/opengl/base.vert"),
         read_text("./shaders/opengl/texture.frag")
     );
-    m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);
-    m_rect_vertex_buffer = make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::dynamic_draw, {
+    m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW,
+                                            sizeof(QUAD_INDICES_CW),
+                                            len(QUAD_INDICES_CW),
+                                            type::u32, usage::static_draw);
+    m_rect_vertex_buffer = make_vertex_buffer(QUAD_VERTICES,
+                                              sizeof(QUAD_VERTICES), type::f32,
+                                              usage::dynamic_draw, {
         {type::vec4, false, 1},
         {type::vec3, false, 1},
         {type::vec3, false, 1},
@@ -50,7 +55,9 @@ renderer::renderer(window_ref_t window) : m_window(window) {
         {type::vec2, false, 1}
     });
     m_rect_descriptor = make_attribute_descriptor();
-    m_rect_descriptor->add(make_vertex_buffer(QUAD_VERTICES, sizeof(QUAD_VERTICES), type::f32, usage::static_draw, {
+    m_rect_descriptor->add(make_vertex_buffer(QUAD_VERTICES,
+                                              sizeof(QUAD_VERTICES), type::f32,
+                                              usage::static_draw, {
         {type::vec3, false, 0},
         {type::vec2, false, 0},
     }));
@@ -125,7 +132,9 @@ auto renderer::clear(GLenum bitmask) -> void {
     glClear(bitmask);
 }
 
-auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, glm::vec4 const& color, [[maybe_unused]]glm::vec4 const& round) -> void {
+auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size,
+                    float const& rotation, glm::vec4 const& color,
+                    [[maybe_unused]]glm::vec4 const& round) -> void {
     rect_instance rect{
         .color     = color,
         .position  = {position, m_depth},
@@ -144,14 +153,13 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float cons
     m_depth += m_depth_step;
 }
 
-auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, [[maybe_unused]]glm::vec4 const& round) -> void {
-    rect(position, size, rotation, m_rect_texture_shader, texture, uv, uv_size, round);
-}
-
-auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float const& rotation, shader_ref_t shader, texture_ref_t texture, glm::vec2 const& uv, glm::vec2 const& uv_size, [[maybe_unused]]glm::vec4 const& round) -> void {
+auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size,
+                    float const& rotation, shader_ref_t shader,
+                    texture_ref_t texture, glm::vec2 const& uv,
+                    glm::vec2 const& uv_size, float const& z_offset) -> void {
     rect_instance rect{
         .color     = {1.0f, 1.0f, 1.0f, 1.0f},
-        .position  = {position, m_depth},
+        .position  = {position, m_depth + z_offset},
         .scale     = {size, 1.0f},
         .rotation  = {0.0f, 0.0f, rotation},
         .uv_offset = uv,
@@ -165,15 +173,16 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size, float cons
     }
     it->second.push_back(rect);
     ++it->first.size;
-    m_depth += m_depth_step;
 }
 
-auto renderer::text(std::string const& str, glm::vec2 const& position, glm::vec4 const& color, glm::vec2 const& scale) -> void {
+auto renderer::text(std::string const& str, glm::vec2 const& position,
+                    glm::vec4 const& color, glm::vec2 const& scale) -> void {
     m_text_engine->draw(str, position, color, scale);
     m_depth += m_depth_step;
 }
 
-auto renderer::text_size(std::string const& str, glm::vec2 const& scale) -> glm::vec2 {
+auto renderer::text_size(std::string const& str,
+                         glm::vec2 const& scale) -> glm::vec2 {
     return m_text_engine->text_size(str, scale);
 }
 
