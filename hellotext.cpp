@@ -1,13 +1,13 @@
 #include <span>
 
-#include "fmt/format.h"
-
 #include "txt/window.hpp"
-#include "txt/image.hpp"
 #include "txt/renderer.hpp"
-#include "txt/fonts.hpp"
+#include "txt/text/fonts.hpp"
+
+using namespace txt::types;
 
 static auto entry([[maybe_unused]]std::span<char const*> const& args) -> void {
+    fmt::print("hello\n");
     auto win = txt::make_window({"Hello, Text!"});
     auto ren = txt::make_renderer(win);
     ren->load_font({
@@ -21,18 +21,18 @@ static auto entry([[maybe_unused]]std::span<char const*> const& args) -> void {
 
     win->add_event_listener([&](txt::mouse_move_event const& e) {
         fmt::print("{}\n", e.str());
-        mouse_x = (float)e.x();
-        mouse_y = (float)win->buffer_height() - (float)e.y();
+        mouse_x = f32(e.x());
+        mouse_y = f32(win->buffer_height() - e.y());
     });
     win->add_event_listener([&](txt::key_down_event const& e) {
         fmt::print("{}\n", e.str());
     });
     win->add_event_listener([&](txt::key_up_event const& e) {
         if (e.keycode() == txt::keycode::Q) win->close();
-        if (e.keycode() == txt::keycode::F) win->fullscreen();
+        if (e.keycode() == txt::keycode::F) win->toggle_fullscreen();
     });
 
-    while (!win->should_close()) {
+    txt::loop(win, [&] {
         ren->begin();
         ren->viewport(0, 0, win->buffer_width(), win->buffer_height());
         ren->clear_color(0x000000);
@@ -43,8 +43,7 @@ static auto entry([[maybe_unused]]std::span<char const*> const& args) -> void {
         ren->end();
 
         win->swap();
-        win->poll();
-    }
+    });
 }
 
 auto main(int argc, char const* argv[]) -> int {

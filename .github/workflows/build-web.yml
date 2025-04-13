@@ -1,0 +1,31 @@
+name: Build Web
+
+on:
+  push:
+    branches:
+      - "trunk"
+      - "dev"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build emscripten using docker image
+        run: |
+          docker run --rm -v "$(pwd):/src" emscripten/emsdk:4.0.6 sh ./web/build.sh
+
+      - name: List build output
+        run: ls -R build-web/dist
+
+      - name: Upload built site
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: build-web/dist

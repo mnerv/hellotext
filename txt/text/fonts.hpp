@@ -2,8 +2,7 @@
 #define TXT_FONTS_HPP
 #include <cstdint>
 #include <cstddef>
-#include <set>
-#include <vector>
+#include <unordered_map>
 
 #include "ft2build.h"
 #include FT_FREETYPE_H
@@ -12,8 +11,8 @@
 
 #include "glm/vec2.hpp"
 
-#include "utility.hpp"
-#include "image.hpp"
+#include "txt/utils.hpp"
+#include "txt/graphics/image.hpp"
 
 namespace txt {
 enum class text_render_mode {

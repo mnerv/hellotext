@@ -6,20 +6,27 @@
 #include <map>
 
 #include "types.hpp"
-#include "utility.hpp"
+#include "utils.hpp"
 #include "window.hpp"
-#include "buffer.hpp"
-#include "shader.hpp"
-#include "texture.hpp"
-#include "fonts.hpp"
-#include "text_engine.hpp"
+#include "text/fonts.hpp"
+#include "graphics/buffer.hpp"
+#include "graphics/shader.hpp"
+#include "graphics/texture.hpp"
+#include "text/engine.hpp"
 
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 #include "glm/mat4x4.hpp"
 
+#ifdef __EMSCRIPTEN__
+#define GL_GLEXT_PROTOTYPES 1
+#define GL3_PROTOTYPES 1
+#define EGL_EGLEXT_PROTOTYPES 1
+#include "GL/gl.h"
+#else
 #include "glad/glad.h"
+#endif
 
 namespace txt {
 constexpr GLenum GL_DEFAULT_CLEAR = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;

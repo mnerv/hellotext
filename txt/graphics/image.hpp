@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "fmt/format.h"
-#include "utility.hpp"
+#include "txt/utils.hpp"
 
 namespace txt {
 template <typename T>
@@ -74,7 +74,7 @@ public:
         return *this = std::move(other);
     }
 
-    auto resize(std::size_t width, std::size_t height, std::size_t channels = limits<std::size_t>::max()) -> void {
+    auto resize(std::size_t width, std::size_t height, std::size_t channels = lim<std::size_t>::max()) -> void {
         if (width == m_height && height == m_height) {
             std::memset(m_buffer, 0x00, m_size * sizeof(T));
             return;
@@ -83,7 +83,7 @@ public:
         delete[] m_buffer;
         m_width    = width;
         m_height   = height;
-        m_channels = channels == limits<std::size_t>::max() ? m_channels : channels;
+        m_channels = channels == lim<std::size_t>::max() ? m_channels : channels;
         m_size     = m_width * m_height * m_channels;
         m_buffer   = new T[m_size];
         std::memset(m_buffer, 0x00, m_size * sizeof(T));

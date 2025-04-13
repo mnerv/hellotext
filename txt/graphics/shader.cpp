@@ -5,7 +5,14 @@
 #include "fmt/format.h"
 #include "glm/gtc/type_ptr.hpp"
 
+#ifdef __EMSCRIPTEN__
+#define GL_GLEXT_PROTOTYPES 1
+#define GL3_PROTOTYPES 1
+#define EGL_EGLEXT_PROTOTYPES 1
+#include "GL/gl.h"
+#else
 #include "glad/glad.h"
+#endif
 
 namespace txt {
 auto make_shader(std::string const& vs_src, std::string const& fs_src) -> shader_ref_t {

@@ -1,12 +1,10 @@
-#ifndef TXT_UTILITY_HPP
-#define TXT_UTILITY_HPP
+#ifndef TXT_UTILS_HPP
+#define TXT_UTILS_HPP
 
 #include <memory>
 #include <cstddef>
 #include <limits>
-#include <functional>
 #include <type_traits>
-#include <concepts>
 #include <numbers>
 
 namespace txt {
@@ -25,7 +23,7 @@ inline constexpr auto bit_level(Integral auto const& reg, Integral auto const& m
 }
 
 template <typename T>
-using limits = std::numeric_limits<T>;
+using lim = std::numeric_limits<T>;
 
 template <typename T>
 using ref = std::shared_ptr<T>;
@@ -44,9 +42,9 @@ constexpr auto make_local(Args&&... args) -> local<T> {
 }
 
 // Math constants
-inline constexpr auto pi    = std::numbers::pi;
-inline constexpr auto pif32 = std::numbers::pi_v<float>;
+inline constexpr auto pi     = std::numbers::pi;
+inline constexpr auto pi_f32 = std::numbers::pi_v<float>;
 } // namespace txt
 
-#endif // TXT_UTILITY_HPP
+#endif // TXT_UTILS_HPP
 

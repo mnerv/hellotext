@@ -5,8 +5,10 @@
 #include <array>
 #include <chrono>
 
-#include "utility.hpp"
+#include "utils.hpp"
 #include "input.hpp"
+#include "input/mouse.hpp"
+#include "input/keyboard.hpp"
 
 #include "fmt/format.h"
 

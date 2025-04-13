@@ -1,11 +1,19 @@
 #ifndef TXT_BUFFER_HPP
 #define TXT_BUFFER_HPP
 
-#include <memory>
-#include "types.hpp"
-#include "utility.hpp"
+#include <vector>
 
+#ifdef __EMSCRIPTEN__
+#define GL_GLEXT_PROTOTYPES 1
+#define GL3_PROTOTYPES 1
+#define EGL_EGLEXT_PROTOTYPES 1
+#include "GL/gl.h"
+#else
 #include "glad/glad.h"
+#endif
+
+#include "txt/types.hpp"
+#include "txt/utils.hpp"
 
 namespace txt {
 inline constexpr auto gl_usage(txt::usage const& usage) -> GLenum {

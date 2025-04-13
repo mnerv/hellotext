@@ -1,21 +1,20 @@
 #ifndef TXT_WINDOW_HPP
 #define TXT_WINDOW_HPP
 #include <string_view>
-#include <memory>
 #include <functional>
 #include <string>
 #include <filesystem>
-#include <chrono>
 #include <unordered_map>
 
-#include "glm/vec2.hpp"
-#include "utility.hpp"
+#include "asio.hpp"
 
-#include "input.hpp"
+#include "types.hpp"
+#include "utils.hpp"
 #include "event.hpp"
 
 namespace txt {
 auto read_text(std::filesystem::path const& filename) -> std::string;
+auto graphics_info() -> std::string;
 
 // SOURCE: https://stackoverflow.com/questions/6512019/can-we-get-the-type-of-a-lambda-argument
 template<typename Ret, typename Arg, typename... Rest>
@@ -36,9 +35,9 @@ concept EventFunc = std::is_invocable_r_v<void, T, event const&>;
 class window {
 public:
     struct props {
-        std::string_view  title  = "txt::window";
-        std::uint32_t     width  = 960;
-        std::uint32_t     height = 600;
+        std::string_view title  = "txt::window";
+        u32              width  = 960;
+        u32              height = 600;
     };
 
     using event_fn  = std::function<void(event const&)>;
@@ -50,23 +49,25 @@ public:
 
     auto setup() -> void;
     auto fullscreen() -> void;
+    auto exit_fullscreen() -> void;
+    auto toggle_fullscreen() -> void;
 
-    auto width() const noexcept -> std::uint32_t;
-    auto height() const noexcept -> std::uint32_t;
-    auto buffer_width() const noexcept -> std::uint32_t;
-    auto buffer_height() const noexcept -> std::uint32_t;
+    auto width() const noexcept -> u32;
+    auto height() const noexcept -> u32;
+    auto buffer_width() const noexcept -> u32;
+    auto buffer_height() const noexcept -> u32;
     auto should_close() const noexcept -> bool;
-    auto x() const noexcept -> double;
-    auto y() const noexcept -> double;
-    auto content_scale_x() const noexcept -> double;
-    auto content_scale_y() const noexcept -> double;
+    auto x() const noexcept -> f64;
+    auto y() const noexcept -> f64;
+    auto content_scale_x() const noexcept -> f64;
+    auto content_scale_y() const noexcept -> f64;
     auto is_focused() const noexcept -> bool;
     auto is_hovered() const noexcept -> bool;
-    auto is_maximized() const noexcept -> bool;
+    auto is_fullscreen() const noexcept -> bool;
     auto is_init() const noexcept -> bool;
 
-    auto time() const -> double;
-    auto stopwatch() const -> double;
+    auto time() const -> f64;
+    auto stopwatch() const -> f64;
     auto close() -> void;
     auto poll() -> void;
     auto swap() -> void;
@@ -112,25 +113,39 @@ private:
 private:
     auto setup_native() -> void;
     auto clean_native() -> void;
+    auto poll_native() -> void;
+    auto swap_native() -> void;
+    auto fullscreen_native() -> void;
+    auto exit_fullscreen_native() -> void;
 
 private:
-    std::string   m_title;
-    std::uint32_t m_width;
-    std::uint32_t m_height;
-    std::uint32_t m_buffer_width;
-    std::uint32_t m_buffer_height;
-    bool          m_should_close{false};
-    double        m_content_scale_x{1.0};
-    double        m_content_scale_y{1.0};
-    std::int32_t  m_position_x{0};
-    std::int32_t  m_position_y{0};
-    bool          m_is_focused{true};
-    bool          m_is_maximized{false};
-    bool          m_is_hovered{false};
-    double        m_mouse_x{0.0};
-    double        m_mouse_y{0.0};
+    std::string m_title;
+    u32  m_width;
+    u32  m_height;
+    u32  m_buffer_width;
+    u32  m_buffer_height;
+    bool m_should_close{false};
+    f64  m_content_scale_x{1.0};
+    f64  m_content_scale_y{1.0};
+    i32  m_position_x{0};
+    i32  m_position_y{0};
+    bool m_is_focused{true};
+    bool m_is_fullscreen{false};
+    bool m_is_hovered{false};
+    f64  m_mouse_x{0.0};
+    f64  m_mouse_y{0.0};
     std::unordered_map<event_type, event_map> m_listeners{};
-    bool          m_is_init{false};
+    bool m_is_init{false};
+
+private:
+    asio::io_context m_asio{};
+    asio::io_context::work m_idle{m_asio};
+    struct {
+        u32  m_width{0};
+        u32  m_height{0};
+        i32  m_position_x{0};
+        i32  m_position_y{0};
+    } m_windowed;
 
 private:
     void* m_native{nullptr};
@@ -138,6 +153,9 @@ private:
 
 using window_ref_t = ref<window>;
 auto make_window(window::props const& props) -> window_ref_t;
+
+using loop_fn_t = std::function<void()>;
+auto loop(window_ref_t ctx, loop_fn_t fn) -> void;
 } // namespace txt
 
 #endif  // TXT_WINDOW_HPP

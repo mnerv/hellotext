@@ -34,8 +34,20 @@
   </canvas>
   <script type="text/javascript">
     Module = {
-      canvas: document.querySelector('#canvas')
+      canvas: document.querySelector('#canvas'),
+      onRuntimeInitialized: _ => {
+        setTimeout(_ => {
+          const width  = window.innerWidth;
+          const height = window.innerHeight;
+          Module.setCanvasSize(width, height);
+        }, 16);
+      }
     }
+    // window.addEventListener ("resize", e => {
+    //     const width  = window.innerWidth;
+    //     const height = window.innerHeight;
+    //     Module.setCanvasSize(width, height)
+    // }, true);
   </script>
   <script async type="text/javascript" src="./hellotext.js"></script>
 </body>

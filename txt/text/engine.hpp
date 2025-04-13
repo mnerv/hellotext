@@ -3,18 +3,12 @@
 
 #include <map>
 
-#include "utility.hpp"
-#include "window.hpp"
-#include "image.hpp"
 #include "fonts.hpp"
-#include "shader.hpp"
-#include "texture.hpp"
-#include "buffer.hpp"
+#include "txt/utils.hpp"
+#include "txt/window.hpp"
 
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
-
-#include "fonts.hpp"
 
 namespace txt {
 class text_engine {

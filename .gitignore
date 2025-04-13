@@ -40,3 +40,7 @@ compile_commands.json
 # JetBrains Fleet
 .fleet
 .cache
+
+# Keep
+!.github/workflows/build-web.yml
+!.github/workflows/deploy-web.yml

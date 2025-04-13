@@ -1,6 +1,4 @@
 #include "renderer.hpp"
-#include <stdexcept>
-#include "fmt/format.h"
 
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -32,6 +30,7 @@ auto make_renderer(window_ref_t window) -> renderer_local_t {
 }
 
 renderer::renderer(window_ref_t window) : m_window(window) {
+#ifndef __EMSCRIPTEN__
     m_rect_default_shader = make_shader(
         read_text("./shaders/opengl/base.vert"),
         read_text("./shaders/opengl/color.frag")
@@ -40,6 +39,16 @@ renderer::renderer(window_ref_t window) : m_window(window) {
         read_text("./shaders/opengl/base.vert"),
         read_text("./shaders/opengl/texture.frag")
     );
+#else
+    m_rect_default_shader = make_shader(
+        read_text("./shaders/webgl/base.vert"),
+        read_text("./shaders/webgl/color.frag")
+    );
+    m_rect_texture_shader = make_shader(
+        read_text("./shaders/webgl/base.vert"),
+        read_text("./shaders/webgl/texture.frag")
+    );
+#endif  // __EMSCRIPTEN__
     m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW,
                                             sizeof(QUAD_INDICES_CW),
                                             len(QUAD_INDICES_CW),

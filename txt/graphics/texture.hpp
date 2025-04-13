@@ -3,8 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "utility.hpp"
-#include "buffer.hpp"
+#include "txt/types.hpp"
+#include "txt/utils.hpp"
 #include "image.hpp"
 
 namespace txt {

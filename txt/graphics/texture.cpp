@@ -1,6 +1,15 @@
 #include "texture.hpp"
 
+#ifdef __EMSCRIPTEN__
+#define GL_GLEXT_PROTOTYPES 1
+#define GL3_PROTOTYPES 1
+#define EGL_EGLEXT_PROTOTYPES 1
+#include "GL/gl.h"
+#else
 #include "glad/glad.h"
+#endif
+
+#include "buffer.hpp"
 
 namespace txt {
 constexpr auto gl_texture_internal_format(pixel_fmt value) -> GLint {

@@ -5,21 +5,32 @@
 #include <cstddef>
 
 namespace txt {
-using i8    = std::int8_t;
-using u8    = std::uint8_t;
-using i16   = std::int16_t;
-using u16   = std::uint16_t;
-using i32   = std::int32_t;
-using u32   = std::uint32_t;
-using i64   = std::int64_t;
-using u64   = std::uint64_t;
-using f32   = float;
-using f64   = double;
-using usize = std::size_t;
-using isize = std::ptrdiff_t;
+namespace types {
+    using f32 = float;
+    using f64 = double;
+
+    using u8 = std::uint8_t;
+    using u16 = std::uint16_t;
+    using u32 = std::uint32_t;
+    using u64 = std::uint64_t;
+
+    using usize = std::size_t;
+    using isize = std::ptrdiff_t;
+
+    using i8 = std::int8_t;
+    using i16 = std::int16_t;
+    using i32 = std::int32_t;
+    using i64 = std::int64_t;
+
+    using c8 = char;
+    using c16 = char16_t;
+    using c32 = char32_t;
+}
+
+using namespace txt::types;
 
 // OpenGL Type: https://www.khronos.org/opengl/wiki/OpenGL_Type
-enum class type : std::uint32_t {
+enum class type : u32 {
     unknown = 0,
     boolean,
     i8,    u8,
@@ -33,7 +44,7 @@ enum class type : std::uint32_t {
     mat2,  mat3,  mat4,
 };
 
-enum class usage : std::uint32_t {
+enum class usage : u32 {
     stream_draw,
     stream_read,
     stream_copy,
