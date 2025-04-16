@@ -3,9 +3,6 @@
 #include "emscripten.h"
 #include "emscripten/emscripten.h"
 #include "emscripten/html5.h"
-#define GL_GLEXT_PROTOTYPES 1
-#define GL3_PROTOTYPES 1
-#define EGL_EGLEXT_PROTOTYPES 1
 #include "GL/gl.h"
 
 namespace txt {
@@ -13,11 +10,16 @@ auto window::poll_native() -> void {
     double width, height;
     emscripten_get_element_css_size("canvas", &width, &height);
     if (u32(width) != m_width || u32(height) != m_height) {
+        auto const device_pixel_ratio = emscripten_get_device_pixel_ratio();
+        m_content_scale_x = device_pixel_ratio;
+        m_content_scale_y = device_pixel_ratio;
         m_width         = u32(width);
         m_height        = u32(height);
         m_buffer_width  = u32(width * m_content_scale_x);
         m_buffer_height = u32(height * m_content_scale_y);
         emscripten_set_canvas_element_size("#canvas", m_buffer_width, m_buffer_height);
+
+        fmt::print("{}, {} b {}\n", width, height, m_content_scale_x);
 
         {
             auto const e = framebuffer_resize_event(0, m_buffer_width, m_buffer_height);

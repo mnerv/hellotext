@@ -4,9 +4,6 @@
 #include <vector>
 
 #ifdef __EMSCRIPTEN__
-#define GL_GLEXT_PROTOTYPES 1
-#define GL3_PROTOTYPES 1
-#define EGL_EGLEXT_PROTOTYPES 1
 #include "GL/gl.h"
 #else
 #include "glad/glad.h"

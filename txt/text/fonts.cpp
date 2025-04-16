@@ -1,6 +1,10 @@
 #include "fonts.hpp"
+
 #include <filesystem>
 #include <algorithm>
+
+#include "fmt/core.h"
+#include "stb_image_write.h"
 
 namespace txt {
 [[maybe_unused]]static auto filename_no_extension(std::string const& filename) -> std::string {
@@ -14,17 +18,24 @@ namespace txt {
 font::font()
     : m_face()
     , m_filepath("")
-    , m_size(0)
+    , m_font_size(0)
     , m_render_mode(text_render_mode::normal)
-    , m_name("") {}
+    , m_name("")
+    , m_max_font_size(0)
+    , m_color_channels(0)
+    , m_flags(0x00)
+    , m_glyphs() { }
 
 font::font(FT_Face face, font_load_params const& params)
     : m_face(face)
     , m_filepath(params.filepath)
-    , m_size(params.size)
+    , m_font_size(params.size)
     , m_render_mode(params.render_mode)
-    , m_name(filename_no_extension(m_filepath)) {
-}
+    , m_name(filename_no_extension(m_filepath))
+    , m_max_font_size(0)
+    , m_color_channels(0)
+    , m_flags(0x00)
+    , m_glyphs() { }
 
 font::~font() {
     if (m_face == nullptr) return;
@@ -34,16 +45,24 @@ font::~font() {
 font::font(font&& other) noexcept
     : m_face(std::exchange(other.m_face, nullptr))
     , m_filepath(std::move(other.m_filepath))
-    , m_size(other.m_size)
+    , m_font_size(other.m_font_size)
     , m_render_mode(other.m_render_mode)
-    , m_name(std::move(other.m_name)) { }
+    , m_name(std::move(other.m_name))
+    , m_max_font_size(other.m_max_font_size)
+    , m_color_channels(other.m_color_channels)
+    , m_flags(other.m_flags)
+    , m_glyphs(std::move(other.m_glyphs)) { }
 
 auto font::operator=(font&& other) noexcept -> font& {
     std::swap(m_face, other.m_face);
-    m_filepath = std::move(other.m_filepath);
-    std::swap(m_size, other.m_size);
+    std::swap(m_filepath, other.m_filepath);
+    std::swap(m_font_size, other.m_font_size);
     std::swap(m_render_mode, other.m_render_mode);
-    m_name = std::move(other.m_name);
+    std::swap(m_name, other.m_name);
+    std::swap(m_max_font_size, other.m_max_font_size);
+    std::swap(m_color_channels, other.m_color_channels);
+    std::swap(m_flags, other.m_flags);
+    std::swap(m_glyphs, other.m_glyphs);
     return *this;
 }
 
@@ -51,7 +70,7 @@ auto font::find(std::uint32_t const& code) -> glyph_it {
     return m_glyphs.find(code);
 }
 
-auto font::load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void {
+auto font::raster(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void {
     auto const index = FT_Get_Char_Index(m_face, code);
     if (index == 0) return;
     if (FT_Load_Glyph(m_face, index, m_flags)) return;
@@ -62,6 +81,10 @@ auto font::load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* 
     auto const top       = m_face->glyph->bitmap_top;
     auto const advance_x = m_face->glyph->advance.x;
     auto const advance_y = m_face->size->metrics.height;
+
+    // Update max_font_size
+    auto const gt_size = width > height ? width : height;
+    m_max_font_size = m_max_font_size < gt_size ? gt_size : m_max_font_size;
 
     // Convert to one byte alignment
     FT_Bitmap_Convert(library, &m_face->glyph->bitmap, bitmap, 1);
@@ -90,36 +113,34 @@ font_manager::~font_manager() {
     FT_Done_FreeType(m_library);
 }
 
-auto font_manager::load(font& font, std::uint32_t const& code) -> void {
-    auto const& it = m_fonts.find(font.name());
-    if (it == std::end(m_fonts)) return;
-
-    auto const index = FT_Get_Char_Index(font.m_face, code);
-    if (index == 0) return;
-
-    auto& face   = font.m_face;
-    auto& flags  = font.m_flags;
-    auto& glyphs = font.m_glyphs;
-
-    if (FT_Load_Glyph(face, index, flags)) return;
-
-    auto const width     = font.m_face->glyph->bitmap.width / static_cast<std::uint32_t>(font.m_color_channels);
-    auto const height    = font.m_face->glyph->bitmap.rows;
-    auto const left      = font.m_face->glyph->bitmap_left;
-    auto const top       = font.m_face->glyph->bitmap_top;
-    auto const advance_x = font.m_face->glyph->advance.x;
-    auto const advance_y = font.m_face->size->metrics.height;
-
-    // Convert to one byte alignment
-    FT_Bitmap_Convert(m_library, &face->glyph->bitmap, &m_bitmap, 1);
-    glyphs.insert_or_assign(code, glyph{
-        .codepoint    = code,
-        .bearing_left = left,
-        .bearing_top  = top,
-        .advance_x    = advance_x,
-        .advance_y    = advance_y,
-        .bitmap       = image_u8(m_bitmap.buffer, width, height, font.m_color_channels),
-    });
+auto font_manager::raster(font& font, std::uint32_t const& code) -> void {
+    font.raster(code, m_library, &m_bitmap);
+    // auto const index = FT_Get_Char_Index(font.m_face, code);
+    // if (index == 0) return;
+    //
+    // auto& face   = font.m_face;
+    // auto& flags  = font.m_flags;
+    // auto& glyphs = font.m_glyphs;
+    //
+    // if (FT_Load_Glyph(face, index, flags)) return;
+    //
+    // auto const width     = font.m_face->glyph->bitmap.width / static_cast<std::uint32_t>(font.m_color_channels);
+    // auto const height    = font.m_face->glyph->bitmap.rows;
+    // auto const left      = font.m_face->glyph->bitmap_left;
+    // auto const top       = font.m_face->glyph->bitmap_top;
+    // auto const advance_x = font.m_face->glyph->advance.x;
+    // auto const advance_y = font.m_face->size->metrics.height;
+    //
+    // // Convert to one byte alignment
+    // FT_Bitmap_Convert(m_library, &face->glyph->bitmap, &m_bitmap, 1);
+    // glyphs.insert_or_assign(code, glyph{
+    //     .codepoint    = code,
+    //     .bearing_left = left,
+    //     .bearing_top  = top,
+    //     .advance_x    = advance_x,
+    //     .advance_y    = advance_y,
+    //     .bitmap       = image_u8(m_bitmap.buffer, width, height, font.m_color_channels),
+    // });
 }
 
 auto font_manager::load(font_load_params const& params, std::string const& name) -> void {
@@ -158,10 +179,10 @@ auto font_manager::load(font_load_params const& params, std::string const& name)
     }
 
     auto const& range = params.ranges;
-    FT_Set_Pixel_Sizes(font.m_face, 0, std::uint32_t(font.m_size));
+    FT_Set_Pixel_Sizes(font.m_face, 0, std::uint32_t(font.m_font_size));
     // Load initial character range
     for (std::uint32_t code = range[0]; code < range[1]; ++code)
-        load(font, code);
+        raster(font, code);
 
     m_fonts.insert({font_name, std::move(font)});
 }

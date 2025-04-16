@@ -4,7 +4,9 @@ set -e
 
 preload_files="--preload-file $(pwd)/shaders/webgl@./shaders/webgl --preload-file $(pwd)/res/fonts@./res/fonts"
 
-emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="${preload_files}"
+if ! [ -d "./build-web" ]; then
+    emcmake cmake -S . -Bbuild-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="${preload_files}"
+fi
 
 echo "compiling..."
 

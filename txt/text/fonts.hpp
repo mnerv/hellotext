@@ -65,8 +65,11 @@ public:
     auto operator=(font const& other) -> font& = delete;
     auto operator=(font&& other) noexcept -> font&;
 
+    auto data() const -> glyph_map const& { return m_glyphs; }
+    auto size() const -> std::size_t { return m_glyphs.size(); }
     auto filepath() const -> std::string const& { return m_filepath; }
-    auto size() const -> std::uint32_t { return m_size; }
+    auto font_size() const -> std::uint32_t { return m_font_size; }
+    auto max_font_size() const -> std::uint32_t { return m_max_font_size; }
     auto render_mode() const -> text_render_mode { return m_render_mode; }
     auto name() const -> std::string const& { return m_name; }
     auto color_channels() const -> std::size_t { return m_color_channels; }
@@ -77,17 +80,18 @@ private:
     font(FT_Face face, font_load_params const& params);
 
 private:
-    auto load_glyph(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void;
+    auto raster(std::uint32_t const& code, FT_Library library, FT_Bitmap* bitmap) -> void;
 
 private:
     FT_Face          m_face;
     std::string      m_filepath;
-    std::uint32_t    m_size;
+    std::uint32_t    m_font_size;
     text_render_mode m_render_mode;
     std::string      m_name;
-    std::size_t      m_color_channels{1};
-    std::int32_t     m_flags{0x00};
-    glyph_map        m_glyphs{};
+    std::uint32_t    m_max_font_size;
+    std::size_t      m_color_channels;
+    std::int32_t     m_flags;
+    glyph_map        m_glyphs;
 };
 
 class font_manager {
@@ -100,7 +104,7 @@ public:
 
     auto fonts() const -> fonts_t const& { return m_fonts; }
     auto load(font_load_params const& params, std::string const& name = "") -> void;
-    auto load(font& font, std::uint32_t const& code) -> void;
+    auto raster(font& font, std::uint32_t const& code) -> void;
     auto find(std::string const& name) const -> fonts_t::const_iterator;
     auto erase(fonts_t::const_iterator const& it) -> void;
 

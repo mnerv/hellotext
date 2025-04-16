@@ -647,7 +647,7 @@ public:
 
     [[nodiscard]]auto str() const -> std::string {
         using namespace std::string_literals;
-        std::string str{"touch_point {"};
+        std::string str{"touch_point { "};
         str += "id: " + std::to_string(m_id) + ", ";
         str += "x: "  + fmt::format("{:.3f}", m_x) + ", ";
         str += "y: "  + fmt::format("{:.3f}", m_y) + " }";
@@ -683,7 +683,7 @@ public:
         str += "size: " + std::to_string(m_size) + ", ";
         for (std::size_t i = 0; i < m_size; ++i) {
             str += "[" + std::to_string(i) + "]: " + m_points[i].str();
-            if (i < m_points.size() - 1) str += ", ";
+            if (i < m_size - 1) str += ", ";
             else str += " }";
         }
         return str;

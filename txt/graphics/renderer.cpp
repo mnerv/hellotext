@@ -89,7 +89,7 @@ auto renderer::begin() -> void {
     for (auto& [st, data] : m_shader_texture_rects)
         st.size = 0;
 
-    m_text_engine->begin();
+    m_depth = 0.0f;
 }
 
 auto renderer::end() -> void {
@@ -105,7 +105,9 @@ auto renderer::end() -> void {
         m_rect_default_shader->upload_mat4("u_projection", m_projection);
         m_rect_descriptor->bind();
         m_rect_index_buffer->bind();
-        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_rect_index_buffer->size()), gl_type(m_rect_index_buffer->type()), nullptr, GLsizei(m_color_rect_size));
+        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_rect_index_buffer->size()),
+                                gl_type(m_rect_index_buffer->type()), nullptr,
+                                GLsizei(m_color_rect_size));
     }
     for (auto const& [st, vec] : m_shader_texture_rects) {
         auto const bytes = st.size * sizeof(rect_instance);
@@ -121,9 +123,10 @@ auto renderer::end() -> void {
         st.texture->bind(0);
         m_rect_descriptor->bind();
         m_rect_index_buffer->bind();
-        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_rect_index_buffer->size()), gl_type(m_rect_index_buffer->type()), nullptr, GLsizei(m_color_rect_size));
+        glDrawElementsInstanced(GL_TRIANGLES, GLsizei(m_rect_index_buffer->size()),
+                                gl_type(m_rect_index_buffer->type()), nullptr,
+                                GLsizei(m_color_rect_size));
     }
-    m_text_engine->end();
 }
 
 auto renderer::viewport(std::int32_t x, std::int32_t y, std::uint32_t width, std::uint32_t height) -> void {
@@ -165,10 +168,10 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size,
 auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size,
                     float const& rotation, shader_ref_t shader,
                     texture_ref_t texture, glm::vec2 const& uv,
-                    glm::vec2 const& uv_size, float const& z_offset) -> void {
-    rect_instance rect{
+                    glm::vec2 const& uv_size, float const& zdepth) -> void {
+    rect_instance tmp{
         .color     = {1.0f, 1.0f, 1.0f, 1.0f},
-        .position  = {position, m_depth + z_offset},
+        .position  = {position, zdepth},
         .scale     = {size, 1.0f},
         .rotation  = {0.0f, 0.0f, rotation},
         .uv_offset = uv,
@@ -180,7 +183,7 @@ auto renderer::rect(glm::vec2 const& position, glm::vec2 const& size,
         m_shader_texture_rects[key] = {};
         it = m_shader_texture_rects.find(key);
     }
-    it->second.push_back(rect);
+    it->second.push_back(tmp);
     ++it->first.size;
 }
 

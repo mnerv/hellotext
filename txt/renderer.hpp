@@ -20,9 +20,6 @@
 #include "glm/mat4x4.hpp"
 
 #ifdef __EMSCRIPTEN__
-#define GL_GLEXT_PROTOTYPES 1
-#define GL3_PROTOTYPES 1
-#define EGL_EGLEXT_PROTOTYPES 1
 #include "GL/gl.h"
 #else
 #include "glad/glad.h"
@@ -98,7 +95,7 @@ public:
     auto rect(glm::vec2 const& position, glm::vec2 const& size,
               float const& rotation, shader_ref_t shader,
               texture_ref_t texture, glm::vec2 const& uv,
-              glm::vec2 const& uv_size, float const& z_offset = 0.0f) -> void;
+              glm::vec2 const& uv_size, float const& zdepth) -> void;
 
     auto text(std::string const& str, glm::vec2 const& position,
               glm::vec4 const& color = {1.0f, 1.0f, 1.0f, 1.0f},

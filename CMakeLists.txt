@@ -96,8 +96,9 @@ elseif (WIN32)
 elseif(EMSCRIPTEN)
     message("Platform: Emscripten")
     add_compile_definitions(
-        "GL_GLEXT_PROTOTYPES"
-        "GL3_PROTOTYPES"
+        "GL_GLEXT_PROTOTYPES=1"
+        "GL3_PROTOTYPES=1"
+        "EGL_EGLEXT_PROTOTYPES=1"
     )
     add_compile_options("-pthread" "-fexceptions")
     add_link_options(

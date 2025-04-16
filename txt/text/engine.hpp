@@ -23,14 +23,15 @@ public:
     auto set_default(font& font) -> void;
 
 private:
-    friend class renderer;
-    auto begin() -> void;
-    auto end() -> void;
+    auto generate() -> void;
+    auto insert_bitmap(txt::glyph const& glyph) -> void;
 
 private:
-    window_ref_t m_window;
-    font_manager m_manager{};
-    font const*  m_current{};
+    window_ref_t   m_window;
+    font_manager   m_manager{};
+    font const*    m_current{nullptr};
+    image_u8_ref_t m_buffer{nullptr};
+    glm::ivec2     m_uv{0.0f, 0.0f};
 };
 
 using text_engine_ref_t = ref<text_engine>;
