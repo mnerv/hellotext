@@ -193,21 +193,21 @@ auto renderer::text_engine() -> text_engine_ref_t {
 renderer::renderer(window_ref_t window) : m_window(window) {
 #ifndef __EMSCRIPTEN__
     m_rect_default_shader = make_shader(
-        read_text("./shaders/opengl/base.vert"),
-        read_text("./shaders/opengl/color.frag")
+        read_text("./res/shaders/opengl/base.vert"),
+        read_text("./res/shaders/opengl/color.frag")
     );
     m_rect_texture_shader = make_shader(
-        read_text("./shaders/opengl/base.vert"),
-        read_text("./shaders/opengl/texture.frag")
+        read_text("./res/shaders/opengl/base.vert"),
+        read_text("./res/shaders/opengl/texture.frag")
     );
 #else
     m_rect_default_shader = make_shader(
-        read_text("./shaders/webgl/base.vert"),
-        read_text("./shaders/webgl/color.frag")
+        read_text("./res/shaders/webgl/base.vert"),
+        read_text("./res/shaders/webgl/color.frag")
     );
     m_rect_texture_shader = make_shader(
-        read_text("./shaders/webgl/base.vert"),
-        read_text("./shaders/webgl/texture.frag")
+        read_text("./res/shaders/webgl/base.vert"),
+        read_text("./res/shaders/webgl/texture.frag")
     );
 #endif
     m_rect_index_buffer = make_index_buffer(QUAD_INDICES_CW, sizeof(QUAD_INDICES_CW), len(QUAD_INDICES_CW), type::u32, usage::static_draw);

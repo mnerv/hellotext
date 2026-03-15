@@ -138,11 +138,11 @@ text_engine::text_engine(window_ref_t window, font_manager_ref_t manager) : m_wi
     reload();
 
 #ifndef __EMSCRIPTEN__
-    auto vs = read_text("./shaders/opengl/text.vert");
-    auto fs = read_text("./shaders/opengl/text.frag");
+    auto vs = read_text("./res/shaders/opengl/text.vert");
+    auto fs = read_text("./res/shaders/opengl/text.frag");
 #else
-    auto vs = read_text("./shaders/webgl/text.vert");
-    auto fs = read_text("./shaders/webgl/text.frag");
+    auto vs = read_text("./res/shaders/webgl/text.vert");
+    auto fs = read_text("./res/shaders/webgl/text.frag");
 #endif
     m_shader_normal = make_shader(vs, fs);
 }

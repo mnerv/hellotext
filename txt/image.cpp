@@ -1,9 +1,13 @@
 #include "image.hpp"
-#include "stb_image.h"
-#include "stb_image_write.h"
-#include "fmt/format.h"
 
 #include <filesystem>
+
+#include "fmt/format.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 namespace txt {
 auto make_image_u8(std::uint8_t const* data, std::size_t width, std::size_t height, std::size_t channels) -> image_u8_ref_t {
