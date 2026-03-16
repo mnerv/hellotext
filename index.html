@@ -1,42 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Text rendering written in C++ using OpenGL and FreeType! Demo includes a simple text editor and reaction test :)">
-  <title>Hello, Text!</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      color: #f7f7f7;
-      background-color: #2b2d3a;
-      height: 100%;
-    }
-    #canvas {
-      width: 100%;
-      height: 100%;
-    }
-    .noselect {
-      -webkit-touch-callout: none; /* iOS Safari */
-      -webkit-user-select: none;   /* Safari */
-      -khtml-user-select: none;    /* Konqueror HTML */
-      -moz-user-select: none;      /* Firefox */
-      -ms-user-select: none;       /* Internet Explorer/Edge */
-      user-select: none;           /* Non-prefixed version, currently supported by Chrome and Opera */
-    }
-  </style>
-</head>
-<body class="noselect">
-  <canvas id="canvas">
-    <noscript>This application requires JavaScript to work.</noscript>
-  </canvas>
-  <script type="text/javascript">
-    Module = {
-      canvas: document.querySelector('#canvas')
-    }
-  </script>
-  <script async type="text/javascript" src="./hellotext.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Text rendering written in C++ using OpenGL and FreeType! Demo includes a simple text editor and reaction test :)"
+    />
+    <title>Hello, Text!</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        color: #f7f7f7;
+        background-color: #2b2d3a;
+        height: 100%;
+      }
+      #canvas {
+        width: 100%;
+        height: 100%;
+      }
+      .noselect {
+        -webkit-touch-callout: none; /* iOS Safari */
+        -webkit-user-select: none; /* Safari */
+        -khtml-user-select: none; /* Konqueror HTML */
+        -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+        user-select: none; /* Non-prefixed version, currently supported by Chrome and Opera */
+      }
+    </style>
+  </head>
+  <body class="noselect">
+    <canvas id="canvas">
+      <noscript>This application requires JavaScript to work.</noscript>
+    </canvas>
+    <script type="text/javascript">
+      Module = {
+        canvas: document.querySelector("#canvas"),
+      };
+    </script>
+    <script async type="text/javascript" src="@TARGET_NAME@.js"></script>
+  </body>
 </html>
